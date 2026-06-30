@@ -288,14 +288,64 @@
       padding: 8px 0;
     }
 
-    .top-actions {
+    .entry-input-wrap {
       display: flex;
-      gap: 8px;
-      margin-top: 10px;
+      align-items: stretch;
+      position: relative;
     }
 
-    .top-actions button {
-      flex: 1;
+    .entry-input-wrap input {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    .metadata-wrap {
+      position: relative;
+      flex: 0 0 46px;
+    }
+
+    .metadata-btn {
+      width: 46px;
+      height: 100%;
+      min-height: 45px;
+      padding: 0;
+      border: 1px solid var(--border);
+      border-left: none;
+      border-radius: 0 10px 10px 0;
+      background: #e5e7eb;
+      color: #111827;
+      line-height: 1;
+    }
+
+    .metadata-panel {
+      position: absolute;
+      top: 50px;
+      right: 0;
+      z-index: 20;
+      display: none;
+      width: min(280px, calc(100vw - 32px));
+      padding: 12px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      text-align: left;
+    }
+
+    .metadata-panel.show {
+      display: block;
+    }
+
+    .metadata-panel label {
+      margin-top: 8px;
+    }
+
+    .metadata-panel label:first-child {
+      margin-top: 0;
+    }
+
+    .metadata-panel select {
+      margin-bottom: 8px;
     }
 
     .login-overlay {
@@ -419,41 +469,34 @@
       <div class="form-grid">
         <div class="full">
           <label for="textInput">内容</label>
-          <input id="textInput" placeholder="例如：鸡蛋、牛奶、交电费" />
-        </div>
+          <div class="entry-input-wrap">
+            <input id="textInput" placeholder="例如：鸡蛋、牛奶、交电费" />
+            <div class="metadata-wrap">
+              <button class="metadata-btn" id="metadataBtn" aria-label="设置类型、商店和添加人" title="设置">▾</button>
+              <div class="metadata-panel" id="metadataPanel">
+                <label for="typeInput">类型</label>
+                <select id="typeInput">
+                  <option value="shopping" selected>购物</option>
+                  <option value="todo">待办</option>
+                </select>
 
-        <div>
-          <label for="typeInput">类型</label>
-          <select id="typeInput">
-            <option value="shopping">购物</option>
-            <option value="todo">待办</option>
-          </select>
-        </div>
+                <label for="storeInput">商店</label>
+                <select id="storeInput">
+                  <option value="Costco" selected>Costco</option>
+                  <option value="大统华">大统华</option>
+                  <option value="Walmart">Walmart</option>
+                  <option value="Safeway">Safeway</option>
+                  <option value="其他">其他</option>
+                </select>
 
-        <div>
-          <label for="storeInput">商店</label>
-          <select id="storeInput">
-            <option value="Costco">Costco</option>
-            <option value="大统华">大统华</option>
-            <option value="Walmart">Walmart</option>
-            <option value="Safeway">Safeway</option>
-            <option value="其他">其他</option>
-          </select>
+                <label for="byInput">添加人</label>
+                <select id="byInput">
+                  <option id="byCurrentOption" value="">当前登录用户</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
-
-        <div class="full">
-          <label for="byInput">添加人</label>
-          <input id="byInput" readonly />
-        </div>
-
-        <div class="full">
-          <button id="addBtn">添加</button>
-        </div>
-      </div>
-
-      <div class="top-actions">
-        <button class="secondary" id="reloadBtn">刷新</button>
-        <button class="secondary" id="showDoneBtn">显示已完成</button>
       </div>
 
       <div id="status" class="status"></div>
@@ -497,7 +540,6 @@
     const DEFAULT_STORAGE_TOKEN = "8e18d6dcaad6031e31c2bbdb0802135653b70fd490a66fc34eedcb7345ebbb31";
 
     let items = [];
-    let showDone = false;
     let isSaving = false;
     let loginName = "";
 
@@ -515,12 +557,12 @@
     const settingsStatus = document.getElementById("settingsStatus");
 
     const textInput = document.getElementById("textInput");
+    const metadataBtn = document.getElementById("metadataBtn");
+    const metadataPanel = document.getElementById("metadataPanel");
     const typeInput = document.getElementById("typeInput");
     const storeInput = document.getElementById("storeInput");
     const byInput = document.getElementById("byInput");
-    const addBtn = document.getElementById("addBtn");
-    const reloadBtn = document.getElementById("reloadBtn");
-    const showDoneBtn = document.getElementById("showDoneBtn");
+    const byCurrentOption = document.getElementById("byCurrentOption");
     const statusEl = document.getElementById("status");
 
     init();
@@ -528,26 +570,13 @@
     function init() {
       setupLogin();
       setupSettings();
-
-      addBtn.addEventListener("click", addItem);
-      reloadBtn.addEventListener("click", () => loadItems(true));
-
-      showDoneBtn.addEventListener("click", () => {
-        showDone = !showDone;
-        showDoneBtn.textContent = showDone ? "隐藏已完成" : "显示已完成";
-        render();
-      });
+      setupEntryOptions();
 
       textInput.addEventListener("keydown", event => {
         if (event.key === "Enter") {
           addItem();
         }
       });
-
-      typeInput.addEventListener("change", () => {
-        storeInput.disabled = typeInput.value === "todo";
-      });
-
       loadItems(true);
 
       // 每 15 秒自动刷新一次，方便家人添加后同步显示
@@ -564,6 +593,7 @@
 
       menuBtn.addEventListener("click", event => {
         event.stopPropagation();
+        metadataPanel.classList.remove("show");
         settingsPanel.classList.toggle("show");
 
         if (settingsPanel.classList.contains("show")) {
@@ -584,6 +614,7 @@
       document.addEventListener("keydown", event => {
         if (event.key === "Escape") {
           settingsPanel.classList.remove("show");
+          metadataPanel.classList.remove("show");
         }
       });
 
@@ -595,6 +626,26 @@
         if (event.key === "Enter") {
           saveStorageToken();
         }
+      });
+    }
+
+    function setupEntryOptions() {
+      metadataBtn.addEventListener("click", event => {
+        event.stopPropagation();
+        settingsPanel.classList.remove("show");
+        metadataPanel.classList.toggle("show");
+      });
+
+      metadataPanel.addEventListener("click", event => {
+        event.stopPropagation();
+      });
+
+      typeInput.addEventListener("change", () => {
+        storeInput.disabled = typeInput.value === "todo";
+      });
+
+      document.addEventListener("click", () => {
+        metadataPanel.classList.remove("show");
       });
     }
 
@@ -752,7 +803,9 @@
 
     function updateLoginUi() {
       currentUserText.textContent = loginName || "未登录";
-      byInput.value = loginName || "";
+      byCurrentOption.value = loginName || "";
+      byCurrentOption.textContent = loginName || "当前登录用户";
+      byInput.value = byCurrentOption.value;
     }
 
     async function loadItems(showStatus = true) {
@@ -870,7 +923,7 @@
       const text = textInput.value.trim();
       const type = typeInput.value;
       const store = type === "shopping" ? storeInput.value : "";
-      const by = loginName;
+      const by = byInput.value || loginName;
 
       if (!text) {
         textInput.focus();
@@ -926,7 +979,7 @@
     }
 
     function render() {
-      const visibleItems = showDone ? items : items.filter(item => !item.done);
+      const visibleItems = items;
 
       const costco = visibleItems.filter(item =>
         item.type === "shopping" && item.store === "Costco"
