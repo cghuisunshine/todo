@@ -308,6 +308,23 @@
       font-size: 13px;
     }
 
+    .section-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .section-clear {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 8px;
+      background: #fee2e2;
+      color: var(--danger);
+      line-height: 1;
+    }
+
     .item {
       display: flex;
       align-items: flex-start;
@@ -538,7 +555,10 @@
     <section class="card">
       <div class="section-header">
         <h2>Costco 购物</h2>
-        <span id="costcoCount" class="count"></span>
+        <div class="section-actions">
+          <span id="costcoCount" class="count"></span>
+          <button class="section-clear" id="clearCostcoBtn" aria-label="清除 Costco 购物" title="清除 Costco 购物">×</button>
+        </div>
       </div>
       <div id="costcoList"></div>
     </section>
@@ -546,7 +566,10 @@
     <section class="card">
       <div class="section-header">
         <h2>其他购物</h2>
-        <span id="otherShoppingCount" class="count"></span>
+        <div class="section-actions">
+          <span id="otherShoppingCount" class="count"></span>
+          <button class="section-clear" id="clearOtherShoppingBtn" aria-label="清除其他购物" title="清除其他购物">×</button>
+        </div>
       </div>
       <div id="otherShoppingList"></div>
     </section>
@@ -554,7 +577,10 @@
     <section class="card">
       <div class="section-header">
         <h2>家庭待办</h2>
-        <span id="todoCount" class="count"></span>
+        <div class="section-actions">
+          <span id="todoCount" class="count"></span>
+          <button class="section-clear" id="clearTodoBtn" aria-label="清除家庭待办" title="清除家庭待办">×</button>
+        </div>
       </div>
       <div id="todoList"></div>
     </section>
@@ -638,6 +664,9 @@
     const loginBtn = document.getElementById("loginBtn");
     const currentUserText = document.getElementById("currentUserText");
     const clearAllBtn = document.getElementById("clearAllBtn");
+    const clearCostcoBtn = document.getElementById("clearCostcoBtn");
+    const clearOtherShoppingBtn = document.getElementById("clearOtherShoppingBtn");
+    const clearTodoBtn = document.getElementById("clearTodoBtn");
     const menuBtn = document.getElementById("menuBtn");
     const settingsPanel = document.getElementById("settingsPanel");
     const firebaseKeyInput = document.getElementById("firebaseKeyInput");
@@ -676,6 +705,9 @@
       });
 
       clearAllBtn.addEventListener("click", clearAllItems);
+      clearCostcoBtn.addEventListener("click", () => clearItemsBySection("costco"));
+      clearOtherShoppingBtn.addEventListener("click", () => clearItemsBySection("otherShopping"));
+      clearTodoBtn.addEventListener("click", () => clearItemsBySection("todo"));
 
       startFirebaseSync();
     }
@@ -1231,6 +1263,53 @@
       markLocalChange();
       render();
       await saveItems();
+    }
+
+    async function clearItemsBySection(section) {
+      const sectionDetails = getSectionDetails(section);
+      if (!sectionDetails) return;
+
+      const matchingItems = items.filter(sectionDetails.matches);
+      if (matchingItems.length === 0) {
+        setStatus(sectionDetails.emptyMessage);
+        return;
+      }
+
+      const ok = confirm("确定清除" + sectionDetails.label + "吗？");
+      if (!ok) return;
+
+      items = items.filter(item => !sectionDetails.matches(item));
+      markLocalChange();
+      render();
+      await saveItems();
+    }
+
+    function getSectionDetails(section) {
+      if (section === "costco") {
+        return {
+          label: "Costco 购物",
+          emptyMessage: "Costco 购物没有可清除的事项。",
+          matches: item => item.type === "shopping" && item.store === "Costco"
+        };
+      }
+
+      if (section === "otherShopping") {
+        return {
+          label: "其他购物",
+          emptyMessage: "其他购物没有可清除的事项。",
+          matches: item => item.type === "shopping" && item.store !== "Costco"
+        };
+      }
+
+      if (section === "todo") {
+        return {
+          label: "家庭待办",
+          emptyMessage: "家庭待办没有可清除的事项。",
+          matches: item => item.type === "todo"
+        };
+      }
+
+      return null;
     }
 
     function markLocalChange() {

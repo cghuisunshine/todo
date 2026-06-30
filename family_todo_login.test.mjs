@@ -371,6 +371,44 @@ test("includes a clear-all icon button with confirmation", () => {
   assert.match(html, /items = \[\];/);
 });
 
+test("includes clear-all icon buttons for each list section", async () => {
+  assert.match(html, /id="clearCostcoBtn"/);
+  assert.match(html, /aria-label="清除 Costco 购物"/);
+  assert.match(html, /id="clearOtherShoppingBtn"/);
+  assert.match(html, /aria-label="清除其他购物"/);
+  assert.match(html, /id="clearTodoBtn"/);
+  assert.match(html, /aria-label="清除家庭待办"/);
+  assert.match(html, /clearCostcoBtn\.addEventListener\("click", \(\) => clearItemsBySection\("costco"\)\)/);
+  assert.match(html, /clearOtherShoppingBtn\.addEventListener\("click", \(\) => clearItemsBySection\("otherShopping"\)\)/);
+  assert.match(html, /clearTodoBtn\.addEventListener\("click", \(\) => clearItemsBySection\("todo"\)\)/);
+  assert.match(html, /async function clearItemsBySection\(section\)/);
+
+  const firebaseFake = createFirebaseFake({ items: [] });
+  const { elements } = createScriptContext({ firebaseFake });
+
+  elements.get("textInput").value = "milk";
+  elements.get("typeInput").value = "shopping";
+  elements.get("storeInput").value = "Costco";
+  await elements.get("textInput").trigger("keydown", { key: "Enter" });
+
+  elements.get("textInput").value = "bananas";
+  elements.get("typeInput").value = "shopping";
+  elements.get("storeInput").value = "T&T";
+  await elements.get("textInput").trigger("keydown", { key: "Enter" });
+
+  elements.get("textInput").value = "wash towels";
+  elements.get("typeInput").value = "todo";
+  await elements.get("textInput").trigger("keydown", { key: "Enter" });
+
+  await elements.get("clearOtherShoppingBtn").trigger("click");
+
+  const latestWrite = firebaseFake.writes.at(-1);
+  assert.deepEqual(Array.from(latestWrite.items, item => item.text), ["wash towels", "milk"]);
+  assert.match(elements.get("costcoList").innerHTML, /milk/);
+  assert.doesNotMatch(elements.get("otherShoppingList").innerHTML, /bananas/);
+  assert.match(elements.get("todoList").innerHTML, /wash towels/);
+});
+
 test("ignores stale Firestore snapshots that arrive after adding an item", async () => {
   const firebaseFake = createFirebaseFake({ items: [] });
   const { context, elements } = createScriptContext({ firebaseFake });
