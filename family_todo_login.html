@@ -567,6 +567,8 @@
 
     let items = [];
     let isSaving = false;
+    let localChangeVersion = 0;
+    let latestLoadRequestId = 0;
     let loginName = "";
 
     const loginOverlay = document.getElementById("loginOverlay");
@@ -792,6 +794,7 @@
       }
 
       items = [...importedItems, ...items];
+      markLocalChange();
       bulkImportInput.value = "";
       settingsPanel.classList.remove("show");
       render();
@@ -899,6 +902,10 @@
     }
 
     async function loadItems(showStatus = true) {
+      const loadRequestId = latestLoadRequestId + 1;
+      const changeVersionAtStart = localChangeVersion;
+      latestLoadRequestId = loadRequestId;
+
       try {
         if (!getStorageToken()) {
           if (showStatus) {
@@ -917,6 +924,8 @@
         });
 
         if (response.status === 404) {
+          if (!isCurrentLoad(loadRequestId, changeVersionAtStart)) return;
+
           items = [];
           render();
           if (showStatus) {
@@ -931,6 +940,8 @@
 
         const data = await response.json();
         const content = data && data.content ? data.content : data;
+
+        if (!isCurrentLoad(loadRequestId, changeVersionAtStart)) return;
 
         if (Array.isArray(content)) {
           items = content;
@@ -947,9 +958,15 @@
         }
       } catch (error) {
         console.error(error);
+        if (!isCurrentLoad(loadRequestId, changeVersionAtStart)) return;
         setStatus("读取失败。请检查 token、CORS，或远程文件接口。");
         render();
       }
+    }
+
+    function isCurrentLoad(loadRequestId, changeVersionAtStart) {
+      return loadRequestId === latestLoadRequestId
+        && changeVersionAtStart === localChangeVersion;
     }
 
     async function saveItems() {
@@ -1031,6 +1048,7 @@
         createdAt: new Date().toISOString(),
         doneAt: null
       });
+      markLocalChange();
 
       textInput.value = "";
       textInput.focus();
@@ -1051,6 +1069,7 @@
           doneAt: nextDone ? new Date().toISOString() : null
         };
       });
+      markLocalChange();
 
       render();
       await saveItems();
@@ -1064,6 +1083,7 @@
       if (!ok) return;
 
       items = items.filter(item => item.id !== id);
+      markLocalChange();
       render();
       await saveItems();
     }
@@ -1078,8 +1098,13 @@
       if (!ok) return;
 
       items = [];
+      markLocalChange();
       render();
       await saveItems();
+    }
+
+    function markLocalChange() {
+      localChangeVersion += 1;
     }
 
     function render() {
