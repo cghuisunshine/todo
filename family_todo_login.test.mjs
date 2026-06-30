@@ -236,6 +236,8 @@ test("resolves Firebase API key from URL before localStorage", () => {
   assert.match(html, /localStorage\.setItem\(FIREBASE_API_KEY_KEY,\s*apiKeyFromUrl\)/);
   assert.match(html, /localStorage\.getItem\(FIREBASE_API_KEY_KEY\)/);
   assert.match(html, /FIREBASE_API_KEY_KEY\s*=\s*"firebaseApiKey"/);
+  assert.doesNotMatch(html, /AIzaSyCQCgHO0XAXQplM3gTOWIdK1OgtUYT9coI/);
+  assert.doesNotMatch(html, /FIREBASE_API_KEY_DEFAULT/);
 });
 
 test("always shows completed items without a toggle button", () => {
