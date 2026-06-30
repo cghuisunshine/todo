@@ -254,6 +254,20 @@ test("does not show add or refresh buttons", () => {
   assert.doesNotMatch(html, />刷新<\/button>/);
 });
 
+test("pins the add section to the bottom viewport after the lists", () => {
+  const costcoIndex = html.indexOf("<h2>Costco 购物</h2>");
+  const otherShoppingIndex = html.indexOf("<h2>其他购物</h2>");
+  const todoIndex = html.indexOf("<h2>家庭待办</h2>");
+  const addIndex = html.indexOf("<h2>添加新事项</h2>");
+
+  assert.ok(costcoIndex > -1);
+  assert.ok(otherShoppingIndex > costcoIndex);
+  assert.ok(todoIndex > otherShoppingIndex);
+  assert.ok(addIndex > todoIndex);
+  assert.match(html, /class="card entry-card"/);
+  assert.match(html, /\.entry-card\s*{[\s\S]*position:\s*sticky;[\s\S]*bottom:\s*0;/);
+});
+
 test("changes user by double-clicking the current user display", () => {
   assert.doesNotMatch(html, /id="changeUserBtn"/);
   assert.doesNotMatch(html, /getElementById\("changeUserBtn"\)/);

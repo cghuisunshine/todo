@@ -33,6 +33,7 @@
     .app {
       max-width: 760px;
       margin: 0 auto;
+      padding-bottom: 12px;
     }
 
     header {
@@ -152,6 +153,15 @@
       padding: 16px;
       margin-bottom: 16px;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    }
+
+    .entry-card {
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
+      margin-bottom: 0;
+      border: 1px solid var(--border);
+      box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.08);
     }
 
     h2 {
@@ -481,6 +491,30 @@
     </header>
 
     <section class="card">
+      <div class="section-header">
+        <h2>Costco 购物</h2>
+        <span id="costcoCount" class="count"></span>
+      </div>
+      <div id="costcoList"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-header">
+        <h2>其他购物</h2>
+        <span id="otherShoppingCount" class="count"></span>
+      </div>
+      <div id="otherShoppingList"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-header">
+        <h2>家庭待办</h2>
+        <span id="todoCount" class="count"></span>
+      </div>
+      <div id="todoList"></div>
+    </section>
+
+    <section class="card entry-card">
       <h2>添加新事项</h2>
 
       <div class="form-grid">
@@ -516,30 +550,6 @@
       </div>
 
       <div id="status" class="status"></div>
-    </section>
-
-    <section class="card">
-      <div class="section-header">
-        <h2>Costco 购物</h2>
-        <span id="costcoCount" class="count"></span>
-      </div>
-      <div id="costcoList"></div>
-    </section>
-
-    <section class="card">
-      <div class="section-header">
-        <h2>其他购物</h2>
-        <span id="otherShoppingCount" class="count"></span>
-      </div>
-      <div id="otherShoppingList"></div>
-    </section>
-
-    <section class="card">
-      <div class="section-header">
-        <h2>家庭待办</h2>
-        <span id="todoCount" class="count"></span>
-      </div>
-      <div id="todoList"></div>
     </section>
   </div>
 
