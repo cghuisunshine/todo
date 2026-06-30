@@ -127,6 +127,16 @@
       margin-bottom: 8px;
     }
 
+    .import-block {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .import-block textarea {
+      margin-bottom: 8px;
+    }
+
     .settings-actions {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -165,6 +175,7 @@
     }
 
     input,
+    textarea,
     select,
     button {
       width: 100%;
@@ -176,9 +187,17 @@
     }
 
     input:focus,
+    textarea:focus,
     select:focus {
       outline: 2px solid #c7d2fe;
       border-color: #818cf8;
+    }
+
+    textarea {
+      min-height: 88px;
+      resize: vertical;
+      font-family: inherit;
+      line-height: 1.4;
     }
 
     input[readonly] {
@@ -457,6 +476,11 @@
                 <button class="secondary" id="clearTokenBtn">清除</button>
               </div>
               <div id="settingsStatus" class="settings-status"></div>
+              <div class="import-block">
+                <label for="bulkImportInput">按行导入</label>
+                <textarea id="bulkImportInput" placeholder="事项名称,类型,商店,添加人"></textarea>
+                <button class="secondary" id="importLinesBtn">导入</button>
+              </div>
             </div>
           </div>
         </div>
@@ -555,6 +579,8 @@
     const testTokenBtn = document.getElementById("testTokenBtn");
     const clearTokenBtn = document.getElementById("clearTokenBtn");
     const settingsStatus = document.getElementById("settingsStatus");
+    const bulkImportInput = document.getElementById("bulkImportInput");
+    const importLinesBtn = document.getElementById("importLinesBtn");
 
     const textInput = document.getElementById("textInput");
     const metadataBtn = document.getElementById("metadataBtn");
@@ -621,6 +647,7 @@
       saveTokenBtn.addEventListener("click", saveStorageToken);
       testTokenBtn.addEventListener("click", testStorageToken);
       clearTokenBtn.addEventListener("click", clearStorageToken);
+      importLinesBtn.addEventListener("click", importLines);
 
       tokenInput.addEventListener("keydown", event => {
         if (event.key === "Enter") {
@@ -742,6 +769,63 @@
         updateSettingsStatus("测试失败，请检查 token。");
         setStatus("远程存储 token 测试失败。");
       }
+    }
+
+    async function importLines() {
+      if (!loginName) {
+        showLoginOverlay();
+        setStatus("请先输入登录名。");
+        return;
+      }
+
+      const importedItems = parseImportedItems(bulkImportInput.value);
+      if (importedItems.length === 0) {
+        bulkImportInput.focus();
+        updateSettingsStatus("没有可导入的事项。");
+        return;
+      }
+
+      items = [...importedItems, ...items];
+      bulkImportInput.value = "";
+      settingsPanel.classList.remove("show");
+      render();
+      await saveItems();
+      updateSettingsStatus("已导入 " + importedItems.length + " 项。");
+    }
+
+    function parseImportedItems(text) {
+      return text
+        .split(/\r?\n/)
+        .map(parseImportLine)
+        .filter(Boolean);
+    }
+
+    function parseImportLine(line) {
+      const [rawText, rawType, rawStore, rawBy] = line
+        .split(/[,\uFF0C]/)
+        .map(value => value.trim());
+
+      if (!rawText) return null;
+
+      const type = normalizeImportType(rawType);
+      const store = type === "shopping" ? rawStore || "Costco" : "";
+      const by = rawBy || loginName;
+
+      return {
+        id: makeId(),
+        text: rawText,
+        type,
+        store,
+        by,
+        done: false,
+        createdAt: new Date().toISOString(),
+        doneAt: null
+      };
+    }
+
+    function normalizeImportType(value) {
+      const type = String(value || "").trim().toLowerCase();
+      return type === "todo" || type === "待办" ? "todo" : "shopping";
     }
 
     function updateSettingsStatus(message) {
@@ -979,7 +1063,7 @@
     }
 
     function render() {
-      const visibleItems = items;
+      const visibleItems = sortVisibleItems(items);
 
       const costco = visibleItems.filter(item =>
         item.type === "shopping" && item.store === "Costco"
@@ -996,6 +1080,10 @@
       renderList("costcoList", "costcoCount", costco);
       renderList("otherShoppingList", "otherShoppingCount", otherShopping);
       renderList("todoList", "todoCount", todos);
+    }
+
+    function sortVisibleItems(list) {
+      return [...list].sort((a, b) => Number(a.done) - Number(b.done));
     }
 
     function renderList(listId, countId, list) {
