@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>家庭待办和购物清单</title>
+
+  <style>
+    :root {
+      --bg: #f5f5f7;
+      --card: #ffffff;
+      --text: #1f2933;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --primary: #111827;
+      --danger: #dc2626;
+      --done: #9ca3af;
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .app {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 16px;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    h1 {
+      font-size: 28px;
+      margin: 0 0 6px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .login-info {
+      text-align: right;
+      min-width: 130px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .login-info strong {
+      display: block;
+      color: var(--text);
+      font-size: 15px;
+      margin-bottom: 6px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .small-btn {
+      width: auto;
+      padding: 7px 10px;
+      font-size: 13px;
+      border-radius: 8px;
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .menu-wrap {
+      position: relative;
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border-radius: 8px;
+      background: #e5e7eb;
+      color: #111827;
+      line-height: 1;
+    }
+
+    .settings-panel {
+      position: absolute;
+      top: 46px;
+      right: 0;
+      z-index: 20;
+      display: none;
+      width: min(320px, calc(100vw - 24px));
+      padding: 12px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      text-align: left;
+    }
+
+    .settings-panel.show {
+      display: block;
+    }
+
+    .settings-panel h2 {
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    .settings-panel input {
+      margin-bottom: 8px;
+    }
+
+    .settings-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .settings-actions button:first-child {
+      grid-column: 1 / -1;
+    }
+
+    .settings-status {
+      min-height: 18px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    }
+
+    h2 {
+      font-size: 20px;
+      margin: 0 0 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    input,
+    select,
+    button {
+      width: 100%;
+      font-size: 16px;
+      padding: 11px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fff;
+    }
+
+    input:focus,
+    select:focus {
+      outline: 2px solid #c7d2fe;
+      border-color: #818cf8;
+    }
+
+    input[readonly] {
+      background: #f3f4f6;
+      color: #4b5563;
+    }
+
+    button {
+      border: none;
+      background: var(--primary);
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:active {
+      transform: scale(0.99);
+    }
+
+    .danger {
+      background: #fee2e2;
+      color: var(--danger);
+      width: auto;
+      padding: 7px 10px;
+      font-size: 13px;
+    }
+
+    .secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 10px;
+      min-height: 18px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .count {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .item:last-child {
+      border-bottom: none;
+    }
+
+    .item input[type="checkbox"] {
+      width: 22px;
+      height: 22px;
+      margin-top: 2px;
+      flex: 0 0 auto;
+    }
+
+    .item-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .item-text {
+      font-size: 17px;
+      word-break: break-word;
+    }
+
+    .item.done .item-text {
+      text-decoration: line-through;
+      color: var(--done);
+    }
+
+    .meta {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-size: 14px;
+      padding: 8px 0;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .top-actions button {
+      flex: 1;
+    }
+
+    .login-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 999;
+    }
+
+    .login-overlay.show {
+      display: flex;
+    }
+
+    .login-box {
+      width: 100%;
+      max-width: 380px;
+      background: white;
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.2);
+    }
+
+    .login-box h2 {
+      margin-bottom: 8px;
+    }
+
+    .login-box p {
+      margin-top: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .login-box input {
+      margin-bottom: 10px;
+    }
+
+    @media (max-width: 560px) {
+      body {
+        padding: 12px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      .header-row {
+        flex-direction: column;
+      }
+
+      .login-info {
+        text-align: left;
+      }
+
+      .header-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .full {
+        grid-column: auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="login-overlay" id="loginOverlay">
+    <div class="login-box">
+      <h2>请输入登录名</h2>
+      <p>这个名字会保存在当前设备的 localStorage 中。以后添加购物或待办事项时，会自动作为“添加人”。</p>
+      <input id="loginNameInput" placeholder="例如：Peggy、爸爸、妈妈" />
+      <button id="loginBtn">进入</button>
+    </div>
+  </div>
+
+  <div class="app">
+    <header>
+      <div class="header-row">
+        <div>
+          <h1>家庭待办和购物清单</h1>
+          <div class="subtitle">家人可以添加、查看、勾选已经完成或已经买到的事项。</div>
+        </div>
+
+        <div class="header-actions">
+          <div class="login-info">
+            当前登录
+            <strong id="currentUserText">未登录</strong>
+            <button class="small-btn" id="changeUserBtn">更换用户</button>
+          </div>
+
+          <div class="menu-wrap">
+            <button class="icon-btn" id="menuBtn" aria-label="打开设置" title="设置">☰</button>
+            <div class="settings-panel" id="settingsPanel">
+              <h2>存储设置</h2>
+              <label for="tokenInput">Bearer token</label>
+              <input id="tokenInput" type="password" autocomplete="off" placeholder="输入远程存储 token" />
+              <div class="settings-actions">
+                <button id="saveTokenBtn">保存 token</button>
+                <button class="secondary" id="testTokenBtn">测试</button>
+                <button class="secondary" id="clearTokenBtn">清除</button>
+              </div>
+              <div id="settingsStatus" class="settings-status"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>添加新事项</h2>
+
+      <div class="form-grid">
+        <div class="full">
+          <label for="textInput">内容</label>
+          <input id="textInput" placeholder="例如：鸡蛋、牛奶、交电费" />
+        </div>
+
+        <div>
+          <label for="typeInput">类型</label>
+          <select id="typeInput">
+            <option value="shopping">购物</option>
+            <option value="todo">待办</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="storeInput">商店</label>
+          <select id="storeInput">
+            <option value="Costco">Costco</option>
+            <option value="大统华">大统华</option>
+            <option value="Walmart">Walmart</option>
+            <option value="Safeway">Safeway</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+
+        <div class="full">
+          <label for="byInput">添加人</label>
+          <input id="byInput" readonly />
+        </div>
+
+        <div class="full">
+          <button id="addBtn">添加</button>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <button class="secondary" id="reloadBtn">刷新</button>
+        <button class="secondary" id="showDoneBtn">显示已完成</button>
+      </div>
+
+      <div id="status" class="status"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-header">
+        <h2>Costco 购物</h2>
+        <span id="costcoCount" class="count"></span>
+      </div>
+      <div id="costcoList"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-header">
+        <h2>其他购物</h2>
+        <span id="otherShoppingCount" class="count"></span>
+      </div>
+      <div id="otherShoppingList"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-header">
+        <h2>家庭待办</h2>
+        <span id="todoCount" class="count"></span>
+      </div>
+      <div id="todoList"></div>
+    </section>
+  </div>
+
+  <script>
+    const STORAGE_BASE_URL = "https://home.gochatus.org";
+    const STORAGE_FILE_URL = "https://home.gochatus.org/files";
+    const STORAGE_USAGE_URL = STORAGE_BASE_URL + "/usage";
+    const STORAGE_PATH = "/configs/family-todo.json";
+    const STORAGE_READ_URL = STORAGE_FILE_URL + "?path=" + encodeURIComponent(STORAGE_PATH);
+    const LOGIN_KEY = "familyTodoLoginName";
+    const TOKEN_KEY = "familyTodoStorageToken";
+    const DEFAULT_STORAGE_TOKEN = "8e18d6dcaad6031e31c2bbdb0802135653b70fd490a66fc34eedcb7345ebbb31";
+
+    let items = [];
+    let showDone = false;
+    let isSaving = false;
+    let loginName = "";
+
+    const loginOverlay = document.getElementById("loginOverlay");
+    const loginNameInput = document.getElementById("loginNameInput");
+    const loginBtn = document.getElementById("loginBtn");
+    const currentUserText = document.getElementById("currentUserText");
+    const changeUserBtn = document.getElementById("changeUserBtn");
+    const menuBtn = document.getElementById("menuBtn");
+    const settingsPanel = document.getElementById("settingsPanel");
+    const tokenInput = document.getElementById("tokenInput");
+    const saveTokenBtn = document.getElementById("saveTokenBtn");
+    const testTokenBtn = document.getElementById("testTokenBtn");
+    const clearTokenBtn = document.getElementById("clearTokenBtn");
+    const settingsStatus = document.getElementById("settingsStatus");
+
+    const textInput = document.getElementById("textInput");
+    const typeInput = document.getElementById("typeInput");
+    const storeInput = document.getElementById("storeInput");
+    const byInput = document.getElementById("byInput");
+    const addBtn = document.getElementById("addBtn");
+    const reloadBtn = document.getElementById("reloadBtn");
+    const showDoneBtn = document.getElementById("showDoneBtn");
+    const statusEl = document.getElementById("status");
+
+    init();
+
+    function init() {
+      setupLogin();
+      setupSettings();
+
+      addBtn.addEventListener("click", addItem);
+      reloadBtn.addEventListener("click", () => loadItems(true));
+
+      showDoneBtn.addEventListener("click", () => {
+        showDone = !showDone;
+        showDoneBtn.textContent = showDone ? "隐藏已完成" : "显示已完成";
+        render();
+      });
+
+      textInput.addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+          addItem();
+        }
+      });
+
+      typeInput.addEventListener("change", () => {
+        storeInput.disabled = typeInput.value === "todo";
+      });
+
+      loadItems(true);
+
+      // 每 15 秒自动刷新一次，方便家人添加后同步显示
+      setInterval(() => {
+        if (!isSaving) {
+          loadItems(false);
+        }
+      }, 15000);
+    }
+
+    function setupSettings() {
+      tokenInput.value = getStorageToken();
+      updateSettingsStatus();
+
+      menuBtn.addEventListener("click", event => {
+        event.stopPropagation();
+        settingsPanel.classList.toggle("show");
+
+        if (settingsPanel.classList.contains("show")) {
+          tokenInput.value = getStorageToken();
+          updateSettingsStatus();
+          setTimeout(() => tokenInput.focus(), 50);
+        }
+      });
+
+      settingsPanel.addEventListener("click", event => {
+        event.stopPropagation();
+      });
+
+      document.addEventListener("click", () => {
+        settingsPanel.classList.remove("show");
+      });
+
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape") {
+          settingsPanel.classList.remove("show");
+        }
+      });
+
+      saveTokenBtn.addEventListener("click", saveStorageToken);
+      testTokenBtn.addEventListener("click", testStorageToken);
+      clearTokenBtn.addEventListener("click", clearStorageToken);
+
+      tokenInput.addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+          saveStorageToken();
+        }
+      });
+    }
+
+    function getStorageToken() {
+      const storedToken = localStorage.getItem(TOKEN_KEY);
+      return storedToken === null ? DEFAULT_STORAGE_TOKEN : storedToken;
+    }
+
+    function getStorageHeaders(includeJson = false) {
+      const token = getStorageToken();
+
+      if (!token) {
+        throw new Error("missing-storage-token");
+      }
+
+      const headers = {
+        Authorization: "Bearer " + token
+      };
+
+      if (includeJson) {
+        headers["Content-Type"] = "application/json";
+      }
+
+      return headers;
+    }
+
+    function saveStorageToken() {
+      const token = tokenInput.value.trim();
+
+      if (!token) {
+        tokenInput.focus();
+        updateSettingsStatus("请输入 token。");
+        return;
+      }
+
+      localStorage.setItem(TOKEN_KEY, token);
+      updateSettingsStatus("Token 已保存。");
+      setStatus("Token 已保存，正在同步...");
+      loadItems(true);
+    }
+
+    function clearStorageToken() {
+      localStorage.setItem(TOKEN_KEY, "");
+      tokenInput.value = "";
+      updateSettingsStatus("Token 已清除。");
+      setStatus("请在右上角菜单中设置远程存储 token。");
+    }
+
+    async function testStorageToken() {
+      try {
+        updateSettingsStatus("正在测试...");
+
+        const token = tokenInput.value.trim();
+        if (token) {
+          localStorage.setItem(TOKEN_KEY, token);
+        }
+
+        const response = await fetch(STORAGE_USAGE_URL, {
+          method: "GET",
+          cache: "no-store",
+          headers: getStorageHeaders()
+        });
+
+        if (!response.ok) {
+          throw new Error("测试失败：" + response.status);
+        }
+
+        updateSettingsStatus("Token 可用。");
+        setStatus("远程存储 token 可用。");
+      } catch (error) {
+        console.error(error);
+        updateSettingsStatus("测试失败，请检查 token。");
+        setStatus("远程存储 token 测试失败。");
+      }
+    }
+
+    function updateSettingsStatus(message) {
+      if (message) {
+        settingsStatus.textContent = message;
+        return;
+      }
+
+      settingsStatus.textContent = getStorageToken()
+        ? "已保存 token。"
+        : "未设置 token。";
+    }
+
+    function setupLogin() {
+      loginName = localStorage.getItem(LOGIN_KEY) || "";
+      updateLoginUi();
+
+      if (!loginName) {
+        showLoginOverlay();
+      }
+
+      loginBtn.addEventListener("click", saveLoginName);
+
+      loginNameInput.addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+          saveLoginName();
+        }
+      });
+
+      changeUserBtn.addEventListener("click", () => {
+        loginNameInput.value = loginName;
+        showLoginOverlay();
+      });
+    }
+
+    function showLoginOverlay() {
+      loginOverlay.classList.add("show");
+      setTimeout(() => loginNameInput.focus(), 50);
+    }
+
+    function hideLoginOverlay() {
+      loginOverlay.classList.remove("show");
+    }
+
+    function saveLoginName() {
+      const name = loginNameInput.value.trim();
+
+      if (!name) {
+        loginNameInput.focus();
+        return;
+      }
+
+      loginName = name;
+      localStorage.setItem(LOGIN_KEY, loginName);
+      updateLoginUi();
+      hideLoginOverlay();
+      setStatus("当前登录：" + loginName);
+    }
+
+    function updateLoginUi() {
+      currentUserText.textContent = loginName || "未登录";
+      byInput.value = loginName || "";
+    }
+
+    async function loadItems(showStatus = true) {
+      try {
+        if (!getStorageToken()) {
+          if (showStatus) {
+            setStatus("请在右上角菜单中设置远程存储 token。");
+          }
+          render();
+          return;
+        }
+
+        if (showStatus) setStatus("正在读取...");
+
+        const response = await fetch(STORAGE_READ_URL, {
+          method: "GET",
+          cache: "no-store",
+          headers: getStorageHeaders()
+        });
+
+        if (response.status === 404) {
+          items = [];
+          render();
+          if (showStatus) {
+            setStatus("远程文件不存在，添加事项后会自动创建。");
+          }
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error("读取失败：" + response.status);
+        }
+
+        const data = await response.json();
+        const content = data && data.content ? data.content : data;
+
+        if (Array.isArray(content)) {
+          items = content;
+        } else if (Array.isArray(content.items)) {
+          items = content.items;
+        } else {
+          items = [];
+        }
+
+        render();
+
+        if (showStatus) {
+          setStatus("已同步：" + new Date().toLocaleTimeString());
+        }
+      } catch (error) {
+        console.error(error);
+        setStatus("读取失败。请检查 token、CORS，或远程文件接口。");
+        render();
+      }
+    }
+
+    async function saveItems() {
+      isSaving = true;
+
+      try {
+        if (!getStorageToken()) {
+          setStatus("保存失败：请先在右上角菜单中设置远程存储 token。");
+          return;
+        }
+
+        setStatus("正在保存...");
+
+        const payload = {
+          app: "family-todo",
+          version: 1,
+          updatedAt: new Date().toISOString(),
+          items
+        };
+
+        let response = await fetch(STORAGE_FILE_URL, {
+          method: "PUT",
+          headers: getStorageHeaders(true),
+          body: JSON.stringify({
+            path: STORAGE_PATH,
+            content: payload
+          })
+        });
+
+        if (response.status === 404) {
+          response = await fetch(STORAGE_FILE_URL, {
+            method: "POST",
+            headers: getStorageHeaders(true),
+            body: JSON.stringify({
+              path: STORAGE_PATH,
+              content: payload
+            })
+          });
+        }
+
+        if (!response.ok) {
+          throw new Error("保存失败：" + response.status);
+        }
+
+        setStatus("已保存：" + new Date().toLocaleTimeString());
+      } catch (error) {
+        console.error(error);
+        setStatus("保存失败。请检查 token、PUT 接口和 CORS 设置。");
+      } finally {
+        isSaving = false;
+      }
+    }
+
+    async function addItem() {
+      if (!loginName) {
+        showLoginOverlay();
+        setStatus("请先输入登录名。");
+        return;
+      }
+
+      const text = textInput.value.trim();
+      const type = typeInput.value;
+      const store = type === "shopping" ? storeInput.value : "";
+      const by = loginName;
+
+      if (!text) {
+        textInput.focus();
+        setStatus("请先输入内容。");
+        return;
+      }
+
+      items.unshift({
+        id: makeId(),
+        text,
+        type,
+        store,
+        by,
+        done: false,
+        createdAt: new Date().toISOString(),
+        doneAt: null
+      });
+
+      textInput.value = "";
+      textInput.focus();
+
+      render();
+      await saveItems();
+    }
+
+    async function toggleDone(id) {
+      items = items.map(item => {
+        if (item.id !== id) return item;
+
+        const nextDone = !item.done;
+
+        return {
+          ...item,
+          done: nextDone,
+          doneAt: nextDone ? new Date().toISOString() : null
+        };
+      });
+
+      render();
+      await saveItems();
+    }
+
+    async function deleteItem(id) {
+      const item = items.find(x => x.id === id);
+      if (!item) return;
+
+      const ok = confirm("确定删除「" + item.text + "」吗？");
+      if (!ok) return;
+
+      items = items.filter(item => item.id !== id);
+      render();
+      await saveItems();
+    }
+
+    function render() {
+      const visibleItems = showDone ? items : items.filter(item => !item.done);
+
+      const costco = visibleItems.filter(item =>
+        item.type === "shopping" && item.store === "Costco"
+      );
+
+      const otherShopping = visibleItems.filter(item =>
+        item.type === "shopping" && item.store !== "Costco"
+      );
+
+      const todos = visibleItems.filter(item =>
+        item.type === "todo"
+      );
+
+      renderList("costcoList", "costcoCount", costco);
+      renderList("otherShoppingList", "otherShoppingCount", otherShopping);
+      renderList("todoList", "todoCount", todos);
+    }
+
+    function renderList(listId, countId, list) {
+      const listEl = document.getElementById(listId);
+      const countEl = document.getElementById(countId);
+
+      countEl.textContent = list.length + " 项";
+
+      if (list.length === 0) {
+        listEl.innerHTML = "<div class='empty'>暂无内容</div>";
+        return;
+      }
+
+      listEl.innerHTML = list.map(item => {
+        const storeText = item.type === "shopping" && item.store
+          ? " · " + escapeHtml(item.store)
+          : "";
+
+        return `
+          <div class="item ${item.done ? "done" : ""}">
+            <input
+              type="checkbox"
+              ${item.done ? "checked" : ""}
+              onchange="toggleDone('${item.id}')"
+            />
+
+            <div class="item-main">
+              <div class="item-text">${escapeHtml(item.text)}</div>
+              <div class="meta">
+                ${escapeHtml(item.by || "家人")} 添加${storeText}
+                · ${formatTime(item.createdAt)}
+              </div>
+            </div>
+
+            <button class="danger" onclick="deleteItem('${item.id}')">删除</button>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function makeId() {
+      return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+    }
+
+    function setStatus(message) {
+      statusEl.textContent = message || "";
+    }
+
+    function formatTime(isoString) {
+      if (!isoString) return "";
+
+      try {
+        const date = new Date(isoString);
+        return date.toLocaleString([], {
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+      } catch {
+        return "";
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
