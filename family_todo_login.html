@@ -559,10 +559,12 @@
 
   <script>
     const FIREBASE_API_KEY_KEY = "firebaseApiKey";
+    const FIREBASE_API_KEY_DEFAULT = "AIzaSyCQCgHO0XAXQplM3gTOWIdK1OgtUYT9coI";
     const FIREBASE_COLLECTION = "familyTodo";
     const FIREBASE_DOC_ID = "main";
     const LOGIN_KEY = "familyTodoLoginName";
     const FIREBASE_CONFIG = {
+      apiKey: FIREBASE_API_KEY_DEFAULT,
       authDomain: "homeinventory-4718c.firebaseapp.com",
       projectId: "homeinventory-4718c",
       storageBucket: "homeinventory-4718c.firebasestorage.app",
@@ -705,11 +707,11 @@
         return apiKeyFromUrl;
       }
 
-      return localStorage.getItem(FIREBASE_API_KEY_KEY) || "";
+      return localStorage.getItem(FIREBASE_API_KEY_KEY) || FIREBASE_API_KEY_DEFAULT;
     }
 
     function getStoredFirebaseApiKey() {
-      return localStorage.getItem(FIREBASE_API_KEY_KEY) || "";
+      return localStorage.getItem(FIREBASE_API_KEY_KEY) || FIREBASE_API_KEY_DEFAULT;
     }
 
     async function startFirebaseSync(apiKey = getFirebaseApiKey()) {
