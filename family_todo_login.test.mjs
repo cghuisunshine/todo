@@ -8,6 +8,7 @@ const html = await readFile(new URL("./family_todo_login.html", import.meta.url)
 function createTestElement(id) {
   const listeners = new Map();
   const classes = new Set();
+  const attributes = new Map();
 
   return {
     id,
@@ -15,6 +16,12 @@ function createTestElement(id) {
     textContent: "",
     innerHTML: "",
     disabled: false,
+    setAttribute(name, value) {
+      attributes.set(name, String(value));
+    },
+    getAttribute(name) {
+      return attributes.get(name) || null;
+    },
     addEventListener(type, handler) {
       listeners.set(type, handler);
     },
@@ -203,7 +210,7 @@ function createScriptContext(options = {}) {
   const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   vm.runInContext(script, context);
 
-  return { context, elements };
+  return { context, elements, storage };
 }
 
 test("uses Firebase Firestore as the only shared storage backend", () => {
@@ -267,7 +274,27 @@ test("pins the add section to the bottom viewport after the lists", () => {
   assert.ok(todoIndex > otherShoppingIndex);
   assert.ok(addIndex > todoIndex);
   assert.match(html, /class="card entry-card"/);
+  assert.match(html, /id="entryCard"/);
   assert.match(html, /\.entry-card\s*{[\s\S]*position:\s*sticky;[\s\S]*bottom:\s*0;/);
+});
+
+test("remembers whether the add card was collapsed and restores the floating toggle state", () => {
+  const { elements, storage } = createScriptContext({
+    storedValues: [
+      ["familyTodoLoginName", "Peggy"],
+      ["familyTodoEntryCollapsed", "1"]
+    ]
+  });
+
+  assert.equal(elements.get("entryCard").classList.contains("collapsed"), true);
+  assert.equal(elements.get("entryToggleBtn").textContent, "+");
+  assert.equal(elements.get("entryToggleBtn").getAttribute("aria-label"), "展开添加事项");
+
+  elements.get("entryToggleBtn").trigger("click");
+
+  assert.equal(elements.get("entryCard").classList.contains("collapsed"), false);
+  assert.equal(elements.get("entryToggleBtn").textContent, "-");
+  assert.equal(storage.get("familyTodoEntryCollapsed"), "0");
 });
 
 test("changes user by double-clicking the current user display", () => {
