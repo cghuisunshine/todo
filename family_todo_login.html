@@ -469,13 +469,14 @@
           <div class="menu-wrap">
             <button class="icon-btn" id="menuBtn" aria-label="打开设置" title="设置">☰</button>
             <div class="settings-panel" id="settingsPanel">
-              <h2>存储设置</h2>
-              <label for="tokenInput">Bearer token</label>
-              <input id="tokenInput" type="password" autocomplete="off" placeholder="输入远程存储 token" />
+              <h2>Firebase 设置</h2>
+              <label for="firebaseKeyInput">Firebase API key</label>
+              <input id="firebaseKeyInput" type="password" autocomplete="off" placeholder="输入 Firebase API key" />
               <div class="settings-actions">
-                <button id="saveTokenBtn">保存 token</button>
-                <button class="secondary" id="testTokenBtn">测试</button>
-                <button class="secondary" id="clearTokenBtn">清除</button>
+                <button id="saveFirebaseKeyBtn">保存 key</button>
+                <button class="secondary" id="testFirebaseBtn">测试</button>
+                <button class="secondary" id="clearFirebaseKeyBtn">清除</button>
+                <button class="secondary" id="shareFirebaseBtn">分享</button>
               </div>
               <div id="settingsStatus" class="settings-status"></div>
               <div class="import-block">
@@ -553,22 +554,32 @@
     </section>
   </div>
 
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
   <script>
-    const STORAGE_BASE_URLS = [
-      "https://home.gochatus.org:8443",
-      "https://home.gochatus.org"
-    ];
-    const STORAGE_REQUEST_TIMEOUT_MS = 6000;
-    const STORAGE_PATH = "/configs/family-todo.json";
-    const STORAGE_READ_PATH = "/files?path=" + encodeURIComponent(STORAGE_PATH);
+    const FIREBASE_API_KEY_KEY = "firebaseApiKey";
+    const FIREBASE_COLLECTION = "familyTodo";
+    const FIREBASE_DOC_ID = "main";
     const LOGIN_KEY = "familyTodoLoginName";
-    const TOKEN_KEY = "familyTodoStorageToken";
-    const DEFAULT_STORAGE_TOKEN = "8e18d6dcaad6031e31c2bbdb0802135653b70fd490a66fc34eedcb7345ebbb31";
+    const FIREBASE_CONFIG = {
+      authDomain: "homeinventory-4718c.firebaseapp.com",
+      projectId: "homeinventory-4718c",
+      storageBucket: "homeinventory-4718c.firebasestorage.app",
+      messagingSenderId: "719884896213",
+      appId: "1:719884896213:web:e93d5dffc79dec10995f5c"
+    };
 
     let items = [];
+    let db = null;
+    let todoDocRef = null;
+    let unsubscribeTodo = null;
+    let firebaseConfigured = false;
+    let activeFirebaseApiKey = "";
     let isSaving = false;
     let localChangeVersion = 0;
-    let latestLoadRequestId = 0;
+    let lastRemoteUpdatedAt = "";
+    let pendingLocalUpdatedAt = "";
     let loginName = "";
 
     const loginOverlay = document.getElementById("loginOverlay");
@@ -579,10 +590,11 @@
     const clearAllBtn = document.getElementById("clearAllBtn");
     const menuBtn = document.getElementById("menuBtn");
     const settingsPanel = document.getElementById("settingsPanel");
-    const tokenInput = document.getElementById("tokenInput");
-    const saveTokenBtn = document.getElementById("saveTokenBtn");
-    const testTokenBtn = document.getElementById("testTokenBtn");
-    const clearTokenBtn = document.getElementById("clearTokenBtn");
+    const firebaseKeyInput = document.getElementById("firebaseKeyInput");
+    const saveFirebaseKeyBtn = document.getElementById("saveFirebaseKeyBtn");
+    const testFirebaseBtn = document.getElementById("testFirebaseBtn");
+    const clearFirebaseKeyBtn = document.getElementById("clearFirebaseKeyBtn");
+    const shareFirebaseBtn = document.getElementById("shareFirebaseBtn");
     const settingsStatus = document.getElementById("settingsStatus");
     const bulkImportInput = document.getElementById("bulkImportInput");
     const importLinesBtn = document.getElementById("importLinesBtn");
@@ -611,18 +623,11 @@
 
       clearAllBtn.addEventListener("click", clearAllItems);
 
-      loadItems(true);
-
-      // 每 15 秒自动刷新一次，方便家人添加后同步显示
-      setInterval(() => {
-        if (!isSaving) {
-          loadItems(false);
-        }
-      }, 15000);
+      startFirebaseSync();
     }
 
     function setupSettings() {
-      tokenInput.value = getStorageToken();
+      firebaseKeyInput.value = getStoredFirebaseApiKey();
       updateSettingsStatus();
 
       menuBtn.addEventListener("click", event => {
@@ -631,9 +636,9 @@
         settingsPanel.classList.toggle("show");
 
         if (settingsPanel.classList.contains("show")) {
-          tokenInput.value = getStorageToken();
+          firebaseKeyInput.value = getStoredFirebaseApiKey();
           updateSettingsStatus();
-          setTimeout(() => tokenInput.focus(), 50);
+          setTimeout(() => firebaseKeyInput.focus(), 50);
         }
       });
 
@@ -652,14 +657,19 @@
         }
       });
 
-      saveTokenBtn.addEventListener("click", saveStorageToken);
-      testTokenBtn.addEventListener("click", testStorageToken);
-      clearTokenBtn.addEventListener("click", clearStorageToken);
+      saveFirebaseKeyBtn.addEventListener("click", () => {
+        saveFirebaseKey();
+      });
+      testFirebaseBtn.addEventListener("click", testFirebaseConnection);
+      clearFirebaseKeyBtn.addEventListener("click", () => {
+        clearFirebaseKey();
+      });
+      shareFirebaseBtn.addEventListener("click", shareFirebaseLink);
       importLinesBtn.addEventListener("click", importLines);
 
-      tokenInput.addEventListener("keydown", event => {
+      firebaseKeyInput.addEventListener("keydown", event => {
         if (event.key === "Enter") {
-          saveStorageToken();
+          saveFirebaseKey();
         }
       });
     }
@@ -684,99 +694,86 @@
       });
     }
 
-    function getStorageToken() {
-      const storedToken = localStorage.getItem(TOKEN_KEY);
-      return storedToken === null ? DEFAULT_STORAGE_TOKEN : storedToken;
+    function getUrlApiKey() {
+      return new URLSearchParams(location.search).get("apiKey") || "";
     }
 
-    function getStorageHeaders(includeJson = false) {
-      const token = getStorageToken();
-
-      if (!token) {
-        throw new Error("missing-storage-token");
+    function getFirebaseApiKey() {
+      const apiKeyFromUrl = getUrlApiKey().trim();
+      if (apiKeyFromUrl) {
+        localStorage.setItem(FIREBASE_API_KEY_KEY, apiKeyFromUrl);
+        return apiKeyFromUrl;
       }
 
-      const headers = {
-        Authorization: "Bearer " + token
-      };
-
-      if (includeJson) {
-        headers["Content-Type"] = "application/json";
-      }
-
-      return headers;
+      return localStorage.getItem(FIREBASE_API_KEY_KEY) || "";
     }
 
-    async function fetchStorage(path, options = {}) {
-      for (let baseIndex = 0; baseIndex < STORAGE_BASE_URLS.length; baseIndex += 1) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), STORAGE_REQUEST_TIMEOUT_MS);
+    function getStoredFirebaseApiKey() {
+      return localStorage.getItem(FIREBASE_API_KEY_KEY) || "";
+    }
 
-        try {
-          return await fetch(STORAGE_BASE_URLS[baseIndex] + path, {
-            ...options,
-            signal: controller.signal
-          });
-        } catch (error) {
-          if (baseIndex === STORAGE_BASE_URLS.length - 1) {
-            throw error;
-          }
-
-          console.warn("Primary storage endpoint unavailable, trying fallback.", error);
-        } finally {
-          clearTimeout(timeoutId);
-        }
+    async function startFirebaseSync() {
+      render();
+      if (!getFirebaseApiKey()) {
+        setStatus("请在右上角菜单中设置 Firebase API key。");
       }
     }
 
-    function saveStorageToken() {
-      const token = tokenInput.value.trim();
-
-      if (!token) {
-        tokenInput.focus();
-        updateSettingsStatus("请输入 token。");
+    async function saveFirebaseKey() {
+      const apiKey = firebaseKeyInput.value.trim();
+      if (!apiKey) {
+        firebaseKeyInput.focus();
+        updateSettingsStatus("请输入 Firebase API key。");
         return;
       }
 
-      localStorage.setItem(TOKEN_KEY, token);
-      updateSettingsStatus("Token 已保存。");
-      setStatus("Token 已保存，正在同步...");
-      loadItems(true);
+      localStorage.setItem(FIREBASE_API_KEY_KEY, apiKey);
+      updateSettingsStatus("Firebase API key 已保存。");
+      setStatus("Firebase API key 已保存，正在同步...");
+      await startFirebaseSync(apiKey);
     }
 
-    function clearStorageToken() {
-      localStorage.setItem(TOKEN_KEY, "");
-      tokenInput.value = "";
-      updateSettingsStatus("Token 已清除。");
-      setStatus("请在右上角菜单中设置远程存储 token。");
+    async function clearFirebaseKey() {
+      localStorage.removeItem(FIREBASE_API_KEY_KEY);
+      firebaseKeyInput.value = "";
+      await stopFirebaseSync();
+      updateSettingsStatus("Firebase API key 已清除。");
+      setStatus("请在右上角菜单中设置 Firebase API key。");
     }
 
-    async function testStorageToken() {
+    async function testFirebaseConnection() {
       try {
         updateSettingsStatus("正在测试...");
-
-        const token = tokenInput.value.trim();
-        if (token) {
-          localStorage.setItem(TOKEN_KEY, token);
-        }
-
-        const response = await fetchStorage("/usage", {
-          method: "GET",
-          cache: "no-store",
-          headers: getStorageHeaders()
-        });
-
-        if (!response.ok) {
-          throw new Error("测试失败：" + response.status);
-        }
-
-        updateSettingsStatus("Token 可用。");
-        setStatus("远程存储 token 可用。");
+        const apiKey = firebaseKeyInput.value.trim() || getStoredFirebaseApiKey();
+        if (!apiKey) throw new Error("missing-firebase-api-key");
+        await readTodoDocOnce(apiKey);
+        updateSettingsStatus("Firebase 可用。");
+        setStatus("Firebase 连接可用。");
       } catch (error) {
         console.error(error);
-        updateSettingsStatus("测试失败，请检查 token。");
-        setStatus("远程存储 token 测试失败。");
+        updateSettingsStatus("测试失败，请检查 Firebase API key。");
+        setStatus("Firebase 测试失败。");
       }
+    }
+
+    function shareFirebaseLink() {
+      const apiKey = getStoredFirebaseApiKey() || firebaseKeyInput.value.trim();
+      const baseUrl = location.origin + location.pathname;
+      const shareUrl = apiKey
+        ? baseUrl + "?apiKey=" + encodeURIComponent(apiKey)
+        : baseUrl;
+
+      if (navigator.share) {
+        navigator.share({
+          title: "家庭待办和购物清单",
+          text: "打开家庭待办和购物清单",
+          url: shareUrl
+        }).catch(error => console.error("分享失败", error));
+      } else {
+        prompt("复制这个链接：", shareUrl);
+      }
+
+      settingsPanel.classList.remove("show");
     }
 
     async function importLines() {
@@ -843,9 +840,9 @@
         return;
       }
 
-      settingsStatus.textContent = getStorageToken()
-        ? "已保存 token。"
-        : "未设置 token。";
+      settingsStatus.textContent = getStoredFirebaseApiKey()
+        ? "已保存 Firebase API key。"
+        : "未设置 Firebase API key。";
     }
 
     function setupLogin() {
