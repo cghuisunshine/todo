@@ -712,10 +712,23 @@
       return localStorage.getItem(FIREBASE_API_KEY_KEY) || "";
     }
 
-    async function startFirebaseSync() {
-      render();
-      if (!getFirebaseApiKey()) {
+    async function startFirebaseSync(apiKey = getFirebaseApiKey()) {
+      if (!apiKey) {
+        firebaseConfigured = false;
+        render();
         setStatus("请在右上角菜单中设置 Firebase API key。");
+        return;
+      }
+
+      try {
+        stopTodoListener();
+        await ensureFirebaseInitialized(apiKey);
+        subscribeToTodoDoc();
+      } catch (error) {
+        console.error(error);
+        firebaseConfigured = false;
+        setStatus("Firebase 初始化失败，请检查 API key。");
+        render();
       }
     }
 
@@ -774,6 +787,129 @@
       }
 
       settingsPanel.classList.remove("show");
+    }
+
+    async function ensureFirebaseInitialized(apiKey) {
+      if (!apiKey) {
+        throw new Error("missing-firebase-api-key");
+      }
+
+      if (activeFirebaseApiKey && activeFirebaseApiKey !== apiKey) {
+        stopTodoListener();
+        if (firebase.apps && firebase.apps.length > 0 && firebase.app().delete) {
+          await firebase.app().delete();
+        }
+      }
+
+      const config = { ...FIREBASE_CONFIG, apiKey };
+      if (!firebase.apps || firebase.apps.length === 0) {
+        firebase.initializeApp(config);
+      }
+
+      activeFirebaseApiKey = apiKey;
+      db = firebase.firestore();
+      todoDocRef = db.collection(FIREBASE_COLLECTION).doc(FIREBASE_DOC_ID);
+      firebaseConfigured = true;
+    }
+
+    async function readTodoDocOnce(apiKey) {
+      if (todoDocRef && activeFirebaseApiKey === apiKey) {
+        return getTodoDocRef().get();
+      }
+
+      const appName = "familyTodoTest-" + Date.now();
+      const testApp = firebase.initializeApp({ ...FIREBASE_CONFIG, apiKey }, appName);
+      try {
+        return firebase.firestore(testApp)
+          .collection(FIREBASE_COLLECTION)
+          .doc(FIREBASE_DOC_ID)
+          .get();
+      } finally {
+        if (testApp.delete) {
+          await testApp.delete();
+        }
+      }
+    }
+
+    function stopTodoListener() {
+      if (unsubscribeTodo) {
+        unsubscribeTodo();
+        unsubscribeTodo = null;
+      }
+    }
+
+    async function stopFirebaseSync() {
+      stopTodoListener();
+      if (firebase.apps && firebase.apps.length > 0 && firebase.app().delete) {
+        await firebase.app().delete();
+      }
+      db = null;
+      todoDocRef = null;
+      firebaseConfigured = false;
+      activeFirebaseApiKey = "";
+    }
+
+    function getTodoDocRef() {
+      if (!todoDocRef) {
+        throw new Error("firebase-not-configured");
+      }
+
+      return todoDocRef;
+    }
+
+    function subscribeToTodoDoc() {
+      const changeVersionAtSubscribe = localChangeVersion;
+      unsubscribeTodo = getTodoDocRef().onSnapshot(snapshot => {
+        if (snapshot.metadata && snapshot.metadata.hasPendingWrites) {
+          return;
+        }
+
+        if (!snapshot.exists) {
+          if (localChangeVersion !== changeVersionAtSubscribe) return;
+
+          items = [];
+          render();
+          setStatus("Firebase 文档不存在，添加事项后会自动创建。");
+          return;
+        }
+
+        const data = snapshot.data() || {};
+        if (!Array.isArray(data.items)) {
+          if (localChangeVersion !== changeVersionAtSubscribe) return;
+
+          items = [];
+          render();
+          setStatus("Firebase 数据为空。");
+          return;
+        }
+
+        const remoteUpdatedAt = data.updatedAt || "";
+        if (!remoteUpdatedAt && localChangeVersion !== changeVersionAtSubscribe) {
+          return;
+        }
+
+        if (lastRemoteUpdatedAt && remoteUpdatedAt && remoteUpdatedAt < lastRemoteUpdatedAt) {
+          return;
+        }
+
+        if (pendingLocalUpdatedAt && remoteUpdatedAt && remoteUpdatedAt < pendingLocalUpdatedAt) {
+          return;
+        }
+
+        items = data.items;
+        if (remoteUpdatedAt) {
+          lastRemoteUpdatedAt = remoteUpdatedAt;
+        }
+        if (remoteUpdatedAt === pendingLocalUpdatedAt) {
+          pendingLocalUpdatedAt = "";
+        }
+        render();
+        setStatus("已同步：" + new Date().toLocaleTimeString());
+      }, error => {
+        console.error(error);
+        setStatus("Firebase 同步失败，请检查 API key 和 Firestore 设置。");
+        render();
+      });
     }
 
     async function importLines() {
@@ -898,80 +1034,12 @@
       byInput.value = byCurrentOption.value;
     }
 
-    async function loadItems(showStatus = true) {
-      const loadRequestId = latestLoadRequestId + 1;
-      const changeVersionAtStart = localChangeVersion;
-      latestLoadRequestId = loadRequestId;
-
-      try {
-        if (!getStorageToken()) {
-          if (showStatus) {
-            setStatus("请在右上角菜单中设置远程存储 token。");
-          }
-          render();
-          return;
-        }
-
-        if (showStatus) setStatus("正在读取...");
-
-        const response = await fetchStorage(STORAGE_READ_PATH, {
-          method: "GET",
-          cache: "no-store",
-          headers: getStorageHeaders()
-        });
-
-        if (response.status === 404) {
-          if (!isCurrentLoad(loadRequestId, changeVersionAtStart)) return;
-
-          items = [];
-          render();
-          if (showStatus) {
-            setStatus("远程文件不存在，添加事项后会自动创建。");
-          }
-          return;
-        }
-
-        if (!response.ok) {
-          throw new Error("读取失败：" + response.status);
-        }
-
-        const data = await response.json();
-        const content = data && data.content ? data.content : data;
-
-        if (!isCurrentLoad(loadRequestId, changeVersionAtStart)) return;
-
-        if (Array.isArray(content)) {
-          items = content;
-        } else if (Array.isArray(content.items)) {
-          items = content.items;
-        } else {
-          items = [];
-        }
-
-        render();
-
-        if (showStatus) {
-          setStatus("已同步：" + new Date().toLocaleTimeString());
-        }
-      } catch (error) {
-        console.error(error);
-        if (!isCurrentLoad(loadRequestId, changeVersionAtStart)) return;
-        setStatus("读取失败。请检查 token、CORS，或远程文件接口。");
-        render();
-      }
-    }
-
-    function isCurrentLoad(loadRequestId, changeVersionAtStart) {
-      return loadRequestId === latestLoadRequestId
-        && changeVersionAtStart === localChangeVersion;
-    }
-
     async function saveItems() {
       isSaving = true;
 
       try {
-        if (!getStorageToken()) {
-          setStatus("保存失败：请先在右上角菜单中设置远程存储 token。");
+        if (!firebaseConfigured || !todoDocRef) {
+          setStatus("保存失败：请先在右上角菜单中设置 Firebase API key。");
           return;
         }
 
@@ -979,39 +1047,18 @@
 
         const payload = {
           app: "family-todo",
-          version: 1,
+          version: 2,
           updatedAt: new Date().toISOString(),
           items
         };
 
-        let response = await fetchStorage("/files", {
-          method: "PUT",
-          headers: getStorageHeaders(true),
-          body: JSON.stringify({
-            path: STORAGE_PATH,
-            content: payload
-          })
-        });
-
-        if (response.status === 404) {
-          response = await fetchStorage("/files", {
-            method: "POST",
-            headers: getStorageHeaders(true),
-            body: JSON.stringify({
-              path: STORAGE_PATH,
-              content: payload
-            })
-          });
-        }
-
-        if (!response.ok) {
-          throw new Error("保存失败：" + response.status);
-        }
-
+        pendingLocalUpdatedAt = payload.updatedAt;
+        await getTodoDocRef().set(payload);
+        lastRemoteUpdatedAt = payload.updatedAt;
         setStatus("已保存：" + new Date().toLocaleTimeString());
       } catch (error) {
         console.error(error);
-        setStatus("保存失败。请检查 token、PUT 接口和 CORS 设置。");
+        setStatus("保存失败。请检查 Firebase API key 和 Firestore 设置。");
       } finally {
         isSaving = false;
       }
