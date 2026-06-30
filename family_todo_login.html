@@ -165,16 +165,29 @@
     }
 
     .entry-card.collapsed {
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      padding: 0;
+    }
+
+    .entry-card.collapsed .entry-title,
+    .entry-card.collapsed .entry-body {
       display: none;
     }
 
+    .entry-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
     .entry-toggle {
-      position: fixed;
-      right: 16px;
-      bottom: 16px;
-      z-index: 30;
       width: 54px;
       height: 54px;
+      flex: 0 0 auto;
       padding: 0;
       border: 1px solid var(--border);
       border-radius: 999px;
@@ -183,6 +196,17 @@
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
       font-size: 26px;
       line-height: 1;
+    }
+
+    .entry-toggle.floating {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 30;
+    }
+
+    .entry-body.collapsed {
+      display: none;
     }
 
     h2 {
@@ -536,45 +560,48 @@
     </section>
 
     <section class="card entry-card" id="entryCard">
-      <h2>添加新事项</h2>
+      <div class="entry-header">
+        <h2 class="entry-title">添加新事项</h2>
+        <button class="entry-toggle" id="entryToggleBtn" aria-label="折叠添加事项" title="折叠添加事项">-</button>
+      </div>
 
-      <div class="form-grid">
-        <div class="full">
-          <div class="entry-input-wrap">
-            <input id="textInput" aria-label="新事项" placeholder="例如：鸡蛋、牛奶、交电费" />
-            <div class="metadata-wrap">
-              <button class="metadata-btn" id="metadataBtn" aria-label="设置类型、商店和添加人" title="设置">▾</button>
-              <div class="metadata-panel" id="metadataPanel">
-                <label for="typeInput">类型</label>
-                <select id="typeInput">
-                  <option value="shopping" selected>购物</option>
-                  <option value="todo">待办</option>
-                </select>
+      <div class="entry-body" id="entryBody">
+        <div class="form-grid">
+          <div class="full">
+            <div class="entry-input-wrap">
+              <input id="textInput" aria-label="新事项" placeholder="例如：鸡蛋、牛奶、交电费" />
+              <div class="metadata-wrap">
+                <button class="metadata-btn" id="metadataBtn" aria-label="设置类型、商店和添加人" title="设置">▾</button>
+                <div class="metadata-panel" id="metadataPanel">
+                  <label for="typeInput">类型</label>
+                  <select id="typeInput">
+                    <option value="shopping" selected>购物</option>
+                    <option value="todo">待办</option>
+                  </select>
 
-                <label for="storeInput">商店</label>
-                <select id="storeInput">
-                  <option value="Costco" selected>Costco</option>
-                  <option value="大统华">大统华</option>
-                  <option value="Walmart">Walmart</option>
-                  <option value="Safeway">Safeway</option>
-                  <option value="其他">其他</option>
-                </select>
+                  <label for="storeInput">商店</label>
+                  <select id="storeInput">
+                    <option value="Costco" selected>Costco</option>
+                    <option value="大统华">大统华</option>
+                    <option value="Walmart">Walmart</option>
+                    <option value="Safeway">Safeway</option>
+                    <option value="其他">其他</option>
+                  </select>
 
-                <label for="byInput">添加人</label>
-                <select id="byInput">
-                  <option id="byCurrentOption" value="">当前登录用户</option>
-                </select>
+                  <label for="byInput">添加人</label>
+                  <select id="byInput">
+                    <option id="byCurrentOption" value="">当前登录用户</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div id="status" class="status"></div>
+        <div id="status" class="status"></div>
+      </div>
     </section>
   </div>
-
-  <button class="entry-toggle" id="entryToggleBtn" aria-label="折叠添加事项" title="折叠添加事项">-</button>
 
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -626,6 +653,7 @@
     const metadataBtn = document.getElementById("metadataBtn");
     const metadataPanel = document.getElementById("metadataPanel");
     const entryCard = document.getElementById("entryCard");
+    const entryBody = document.getElementById("entryBody");
     const entryToggleBtn = document.getElementById("entryToggleBtn");
     const typeInput = document.getElementById("typeInput");
     const storeInput = document.getElementById("storeInput");
@@ -734,6 +762,8 @@
     function syncEntryCardVisibility() {
       if (isEntryCollapsed) {
         entryCard.classList.add("collapsed");
+        entryBody.classList.add("collapsed");
+        entryToggleBtn.classList.add("floating");
         entryToggleBtn.textContent = "+";
         entryToggleBtn.setAttribute("aria-label", "展开添加事项");
         entryToggleBtn.title = "展开添加事项";
@@ -741,6 +771,8 @@
       }
 
       entryCard.classList.remove("collapsed");
+      entryBody.classList.remove("collapsed");
+      entryToggleBtn.classList.remove("floating");
       entryToggleBtn.textContent = "-";
       entryToggleBtn.setAttribute("aria-label", "折叠添加事项");
       entryToggleBtn.title = "折叠添加事项";

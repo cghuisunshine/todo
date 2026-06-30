@@ -267,7 +267,7 @@ test("pins the add section to the bottom viewport after the lists", () => {
   const costcoIndex = html.indexOf("<h2>Costco 购物</h2>");
   const otherShoppingIndex = html.indexOf("<h2>其他购物</h2>");
   const todoIndex = html.indexOf("<h2>家庭待办</h2>");
-  const addIndex = html.indexOf("<h2>添加新事项</h2>");
+  const addIndex = html.indexOf("class=\"entry-title\">添加新事项</h2>");
 
   assert.ok(costcoIndex > -1);
   assert.ok(otherShoppingIndex > costcoIndex);
@@ -275,7 +275,9 @@ test("pins the add section to the bottom viewport after the lists", () => {
   assert.ok(addIndex > todoIndex);
   assert.match(html, /class="card entry-card"/);
   assert.match(html, /id="entryCard"/);
-  assert.match(html, /\.entry-card\s*{[\s\S]*position:\s*sticky;[\s\S]*bottom:\s*0;/);
+  assert.match(html, /class="entry-header"/);
+  assert.match(html, /class="entry-title"/);
+  assert.match(html, /id="entryBody"/);
 });
 
 test("remembers whether the add card was collapsed and restores the floating toggle state", () => {
@@ -287,12 +289,16 @@ test("remembers whether the add card was collapsed and restores the floating tog
   });
 
   assert.equal(elements.get("entryCard").classList.contains("collapsed"), true);
+  assert.equal(elements.get("entryBody").classList.contains("collapsed"), true);
+  assert.equal(elements.get("entryToggleBtn").classList.contains("floating"), true);
   assert.equal(elements.get("entryToggleBtn").textContent, "+");
   assert.equal(elements.get("entryToggleBtn").getAttribute("aria-label"), "展开添加事项");
 
   elements.get("entryToggleBtn").trigger("click");
 
   assert.equal(elements.get("entryCard").classList.contains("collapsed"), false);
+  assert.equal(elements.get("entryBody").classList.contains("collapsed"), false);
+  assert.equal(elements.get("entryToggleBtn").classList.contains("floating"), false);
   assert.equal(elements.get("entryToggleBtn").textContent, "-");
   assert.equal(storage.get("familyTodoEntryCollapsed"), "0");
 });
