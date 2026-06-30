@@ -485,11 +485,13 @@
   </div>
 
   <script>
-    const STORAGE_BASE_URL = "https://home.gochatus.org";
-    const STORAGE_FILE_URL = "https://home.gochatus.org/files";
-    const STORAGE_USAGE_URL = STORAGE_BASE_URL + "/usage";
+    const STORAGE_BASE_URLS = [
+      "https://home.gochatus.org:8443",
+      "https://home.gochatus.org"
+    ];
+    const STORAGE_REQUEST_TIMEOUT_MS = 6000;
     const STORAGE_PATH = "/configs/family-todo.json";
-    const STORAGE_READ_URL = STORAGE_FILE_URL + "?path=" + encodeURIComponent(STORAGE_PATH);
+    const STORAGE_READ_PATH = "/files?path=" + encodeURIComponent(STORAGE_PATH);
     const LOGIN_KEY = "familyTodoLoginName";
     const TOKEN_KEY = "familyTodoStorageToken";
     const DEFAULT_STORAGE_TOKEN = "8e18d6dcaad6031e31c2bbdb0802135653b70fd490a66fc34eedcb7345ebbb31";
@@ -619,6 +621,28 @@
       return headers;
     }
 
+    async function fetchStorage(path, options = {}) {
+      for (let baseIndex = 0; baseIndex < STORAGE_BASE_URLS.length; baseIndex += 1) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), STORAGE_REQUEST_TIMEOUT_MS);
+
+        try {
+          return await fetch(STORAGE_BASE_URLS[baseIndex] + path, {
+            ...options,
+            signal: controller.signal
+          });
+        } catch (error) {
+          if (baseIndex === STORAGE_BASE_URLS.length - 1) {
+            throw error;
+          }
+
+          console.warn("Primary storage endpoint unavailable, trying fallback.", error);
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      }
+    }
+
     function saveStorageToken() {
       const token = tokenInput.value.trim();
 
@@ -650,7 +674,7 @@
           localStorage.setItem(TOKEN_KEY, token);
         }
 
-        const response = await fetch(STORAGE_USAGE_URL, {
+        const response = await fetchStorage("/usage", {
           method: "GET",
           cache: "no-store",
           headers: getStorageHeaders()
@@ -743,7 +767,7 @@
 
         if (showStatus) setStatus("正在读取...");
 
-        const response = await fetch(STORAGE_READ_URL, {
+        const response = await fetchStorage(STORAGE_READ_PATH, {
           method: "GET",
           cache: "no-store",
           headers: getStorageHeaders()
@@ -803,7 +827,7 @@
           items
         };
 
-        let response = await fetch(STORAGE_FILE_URL, {
+        let response = await fetchStorage("/files", {
           method: "PUT",
           headers: getStorageHeaders(true),
           body: JSON.stringify({
@@ -813,7 +837,7 @@
         });
 
         if (response.status === 404) {
-          response = await fetch(STORAGE_FILE_URL, {
+          response = await fetchStorage("/files", {
             method: "POST",
             headers: getStorageHeaders(true),
             body: JSON.stringify({
