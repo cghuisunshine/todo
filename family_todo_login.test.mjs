@@ -5,27 +5,6 @@ import vm from "node:vm";
 
 const html = await readFile(new URL("./family_todo_login.html", import.meta.url), "utf8");
 
-function createDeferred() {
-  let resolve;
-  let reject;
-  const promise = new Promise((promiseResolve, promiseReject) => {
-    resolve = promiseResolve;
-    reject = promiseReject;
-  });
-
-  return { promise, resolve, reject };
-}
-
-function createResponse(body, status = 200) {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    async json() {
-      return body;
-    }
-  };
-}
-
 function createTestElement(id) {
   const listeners = new Map();
   const classes = new Set();
@@ -67,9 +46,101 @@ async function flushPromises() {
   await new Promise(resolve => setImmediate(resolve));
 }
 
-function createScriptContext(fetch) {
+function createFirebaseFake(initialData = null) {
+  const listeners = [];
+  const writes = [];
+  const reads = [];
+  let data = initialData;
+  let readData = initialData;
+
+  const docRef = {
+    onSnapshot(success, failure) {
+      listeners.push({ success, failure });
+      return () => {
+        const listener = listeners.find(entry => entry.success === success);
+        if (listener) listener.unsubscribed = true;
+      };
+    },
+    async set(payload) {
+      writes.push(payload);
+      data = payload;
+      readData = payload;
+    },
+    async get() {
+      reads.push(true);
+      const payload = readData;
+      return {
+        exists: payload !== null,
+        data: () => payload
+      };
+    }
+  };
+
+  return {
+    writes,
+    reads,
+    listeners,
+    emitSnapshot(payload = data, options = {}) {
+      data = payload;
+      const snapshot = {
+        exists: payload !== null,
+        data: () => payload,
+        metadata: { hasPendingWrites: Boolean(options.hasPendingWrites) }
+      };
+
+      for (const listener of listeners) {
+        if (!listener.unsubscribed) listener.success(snapshot);
+      }
+    },
+    emitError(error) {
+      for (const listener of listeners) {
+        if (!listener.unsubscribed && listener.failure) listener.failure(error);
+      }
+    },
+    api: {
+      apps: [],
+      initializeApp(config, name = "[DEFAULT]") {
+        const app = {
+          config,
+          name,
+          delete: async () => {
+            this.apps = this.apps.filter(candidate => candidate !== app);
+          }
+        };
+        this.apps.push(app);
+        this.config = config;
+        return app;
+      },
+      app(name = "[DEFAULT]") {
+        return this.apps.find(app => app.name === name) || this.apps[0];
+      },
+      firestore(app = this.app()) {
+        this.firestoreApp = app;
+        return {
+          collection(name) {
+            assert.equal(name, "familyTodo");
+            return {
+              doc(id) {
+                assert.equal(id, "main");
+                return docRef;
+              }
+            };
+          }
+        };
+      }
+    }
+  };
+}
+
+function createScriptContext(options = {}) {
+  const {
+    firebaseFake = createFirebaseFake({ items: [] }),
+    locationSearch = "?apiKey=test-key",
+    storedValues = [["familyTodoLoginName", "Peggy"]],
+    promptResult = "test-key"
+  } = options;
   const elements = new Map();
-  const storage = new Map([["familyTodoLoginName", "Peggy"]]);
+  const storage = new Map(storedValues);
 
   const document = {
     getElementById(id) {
@@ -81,26 +152,47 @@ function createScriptContext(fetch) {
     },
     addEventListener() {}
   };
+  let sharedPayload = null;
 
   const context = {
     AbortController,
     console,
     confirm: () => true,
     document,
-    fetch,
+    firebase: firebaseFake.api,
+    location: {
+      search: locationSearch,
+      origin: "https://example.test",
+      pathname: "/family_todo_login.html"
+    },
     localStorage: {
       getItem(key) {
         return storage.has(key) ? storage.get(key) : null;
       },
       setItem(key, value) {
         storage.set(key, String(value));
+      },
+      removeItem(key) {
+        storage.delete(key);
       }
     },
+    navigator: {
+      async share(payload) {
+        sharedPayload = payload;
+      }
+    },
+    prompt: () => promptResult,
+    alert: () => {},
+    URLSearchParams,
     setInterval: () => 1,
     clearInterval: () => {},
     setTimeout,
-    clearTimeout
+    clearTimeout,
+    get sharedPayload() {
+      return sharedPayload;
+    }
   };
+  context.window = context;
 
   vm.createContext(context);
   const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
@@ -211,44 +303,91 @@ test("includes a clear-all icon button with confirmation", () => {
   assert.match(html, /items = \[\];/);
 });
 
-test("ignores stale background loads that finish after adding an item", async () => {
-  let getCount = 0;
-  let savedPayload;
-  const staleLoad = createDeferred();
+test("ignores stale Firestore snapshots that arrive after adding an item", async () => {
+  const firebaseFake = createFirebaseFake({ items: [] });
+  const { context, elements } = createScriptContext({ firebaseFake });
 
-  const { context, elements } = createScriptContext(async (url, options = {}) => {
-    const method = options.method || "GET";
-
-    if (url.includes("/files?path=") && method === "GET") {
-      getCount += 1;
-
-      if (getCount === 1) {
-        return createResponse({ content: { items: [] } });
-      }
-
-      return staleLoad.promise;
-    }
-
-    if (url.endsWith("/files") && method === "PUT") {
-      savedPayload = JSON.parse(options.body);
-      return createResponse({});
-    }
-
-    throw new Error("Unexpected fetch: " + method + " " + url);
-  });
-
+  firebaseFake.emitSnapshot({ items: [] });
   await flushPromises();
 
-  const staleLoadPromise = context.loadItems(false);
   elements.get("textInput").value = "milk";
-
   await context.addItem();
 
-  assert.equal(savedPayload.content.items[0].text, "milk");
+  assert.equal(firebaseFake.writes[0].items[0].text, "milk");
   assert.match(elements.get("costcoList").innerHTML, /milk/);
 
-  staleLoad.resolve(createResponse({ content: { items: [] } }));
-  await staleLoadPromise;
+  firebaseFake.emitSnapshot({ items: [] });
+  await flushPromises();
 
   assert.match(elements.get("costcoList").innerHTML, /milk/);
+});
+
+test("clearing the Firebase key unsubscribes the active listener", async () => {
+  const firebaseFake = createFirebaseFake({ items: [] });
+  const { context, elements } = createScriptContext({ firebaseFake });
+  await flushPromises();
+
+  firebaseFake.emitSnapshot({ items: [] });
+  assert.equal(firebaseFake.listeners.length, 1);
+
+  await context.clearFirebaseKey();
+
+  assert.equal(firebaseFake.listeners[0].unsubscribed, true);
+  assert.equal(elements.get("settingsStatus").textContent, "Firebase API key 已清除。");
+});
+
+test("testing Firebase reads once without replacing the visible list", async () => {
+  const firebaseFake = createFirebaseFake({
+    updatedAt: "2026-06-30T10:05:00.000Z",
+    items: [{
+      id: "2",
+      text: "bread",
+      type: "shopping",
+      store: "Costco",
+      by: "Peggy",
+      done: false,
+      createdAt: "2026-06-30T10:05:00.000Z",
+      doneAt: null
+    }]
+  });
+  const { context, elements } = createScriptContext({ firebaseFake });
+  await flushPromises();
+
+  firebaseFake.emitSnapshot({
+    updatedAt: "2026-06-30T10:00:00.000Z",
+    items: [{
+      id: "1",
+      text: "milk",
+      type: "shopping",
+      store: "Costco",
+      by: "Peggy",
+      done: false,
+      createdAt: "2026-06-30T10:00:00.000Z",
+      doneAt: null
+    }]
+  });
+  await flushPromises();
+
+  assert.match(elements.get("costcoList").innerHTML, /milk/);
+  await context.testFirebaseConnection();
+
+  assert.equal(firebaseFake.reads.length, 1);
+  assert.equal(firebaseFake.listeners.length, 1);
+  assert.match(elements.get("costcoList").innerHTML, /milk/);
+  assert.doesNotMatch(elements.get("costcoList").innerHTML, /bread/);
+});
+
+test("saving a different Firebase key recreates the Firebase app and listener", async () => {
+  const firebaseFake = createFirebaseFake({ items: [] });
+  const { context, elements } = createScriptContext({ firebaseFake });
+  await flushPromises();
+
+  assert.equal(firebaseFake.listeners.length, 1);
+  elements.get("firebaseKeyInput").value = "second-key";
+
+  await context.saveFirebaseKey();
+
+  assert.equal(firebaseFake.api.config.apiKey, "second-key");
+  assert.equal(firebaseFake.listeners.length, 2);
+  assert.equal(firebaseFake.listeners[0].unsubscribed, true);
 });
