@@ -66,23 +66,15 @@
     .login-info strong {
       display: block;
       color: var(--text);
+      cursor: pointer;
       font-size: 15px;
-      margin-bottom: 6px;
+      margin-bottom: 0;
     }
 
     .header-actions {
       display: flex;
       align-items: flex-start;
       gap: 8px;
-    }
-
-    .small-btn {
-      width: auto;
-      padding: 7px 10px;
-      font-size: 13px;
-      border-radius: 8px;
-      background: #e5e7eb;
-      color: #111827;
     }
 
     .menu-wrap {
@@ -454,14 +446,12 @@
       <div class="header-row">
         <div>
           <h1>家庭待办和购物清单</h1>
-          <div class="subtitle">家人可以添加、查看、勾选已经完成或已经买到的事项。</div>
         </div>
 
         <div class="header-actions">
           <div class="login-info">
             当前登录
-            <strong id="currentUserText">未登录</strong>
-            <button class="small-btn" id="changeUserBtn">更换用户</button>
+            <strong id="currentUserText" title="双击更换用户">未登录</strong>
           </div>
 
           <button class="icon-btn" id="clearAllBtn" aria-label="全部清除" title="全部清除">×</button>
@@ -495,9 +485,8 @@
 
       <div class="form-grid">
         <div class="full">
-          <label for="textInput">内容</label>
           <div class="entry-input-wrap">
-            <input id="textInput" placeholder="例如：鸡蛋、牛奶、交电费" />
+            <input id="textInput" aria-label="新事项" placeholder="例如：鸡蛋、牛奶、交电费" />
             <div class="metadata-wrap">
               <button class="metadata-btn" id="metadataBtn" aria-label="设置类型、商店和添加人" title="设置">▾</button>
               <div class="metadata-panel" id="metadataPanel">
@@ -588,7 +577,6 @@
     const loginNameInput = document.getElementById("loginNameInput");
     const loginBtn = document.getElementById("loginBtn");
     const currentUserText = document.getElementById("currentUserText");
-    const changeUserBtn = document.getElementById("changeUserBtn");
     const clearAllBtn = document.getElementById("clearAllBtn");
     const menuBtn = document.getElementById("menuBtn");
     const settingsPanel = document.getElementById("settingsPanel");
@@ -999,10 +987,12 @@
         }
       });
 
-      changeUserBtn.addEventListener("click", () => {
-        loginNameInput.value = loginName;
-        showLoginOverlay();
-      });
+      currentUserText.addEventListener("dblclick", changeLoginUser);
+    }
+
+    function changeLoginUser() {
+      loginNameInput.value = loginName;
+      showLoginOverlay();
     }
 
     function showLoginOverlay() {

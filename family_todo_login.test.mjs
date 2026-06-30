@@ -18,6 +18,11 @@ function createTestElement(id) {
     addEventListener(type, handler) {
       listeners.set(type, handler);
     },
+    trigger(type, event = {}) {
+      if (listeners.has(type)) {
+        return listeners.get(type)(event);
+      }
+    },
     focus() {},
     classList: {
       add(name) {
@@ -247,6 +252,20 @@ test("does not show add or refresh buttons", () => {
   assert.doesNotMatch(html, /getElementById\("reloadBtn"\)/);
   assert.doesNotMatch(html, />添加<\/button>/);
   assert.doesNotMatch(html, />刷新<\/button>/);
+});
+
+test("changes user by double-clicking the current user display", () => {
+  assert.doesNotMatch(html, /id="changeUserBtn"/);
+  assert.doesNotMatch(html, /getElementById\("changeUserBtn"\)/);
+  assert.doesNotMatch(html, />更换用户<\/button>/);
+
+  const { elements } = createScriptContext();
+  assert.equal(elements.get("loginOverlay").classList.contains("show"), false);
+
+  elements.get("currentUserText").trigger("dblclick");
+
+  assert.equal(elements.get("loginNameInput").value, "Peggy");
+  assert.equal(elements.get("loginOverlay").classList.contains("show"), true);
 });
 
 test("keeps type store and added-by controls in the input-side dropdown", () => {
