@@ -464,6 +464,8 @@
             <button class="small-btn" id="changeUserBtn">更换用户</button>
           </div>
 
+          <button class="icon-btn" id="clearAllBtn" aria-label="全部清除" title="全部清除">×</button>
+
           <div class="menu-wrap">
             <button class="icon-btn" id="menuBtn" aria-label="打开设置" title="设置">☰</button>
             <div class="settings-panel" id="settingsPanel">
@@ -572,6 +574,7 @@
     const loginBtn = document.getElementById("loginBtn");
     const currentUserText = document.getElementById("currentUserText");
     const changeUserBtn = document.getElementById("changeUserBtn");
+    const clearAllBtn = document.getElementById("clearAllBtn");
     const menuBtn = document.getElementById("menuBtn");
     const settingsPanel = document.getElementById("settingsPanel");
     const tokenInput = document.getElementById("tokenInput");
@@ -603,6 +606,9 @@
           addItem();
         }
       });
+
+      clearAllBtn.addEventListener("click", clearAllItems);
+
       loadItems(true);
 
       // 每 15 秒自动刷新一次，方便家人添加后同步显示
@@ -1058,6 +1064,20 @@
       if (!ok) return;
 
       items = items.filter(item => item.id !== id);
+      render();
+      await saveItems();
+    }
+
+    async function clearAllItems() {
+      if (items.length === 0) {
+        setStatus("没有可清除的事项。");
+        return;
+      }
+
+      const ok = confirm("确定清除全部事项吗？");
+      if (!ok) return;
+
+      items = [];
       render();
       await saveItems();
     }
