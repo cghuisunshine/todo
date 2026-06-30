@@ -332,6 +332,30 @@ test("keeps type store and added-by controls in the input-side dropdown", () => 
   assert.match(html, /const by = byInput\.value \|\| loginName;/);
 });
 
+test("shows an inline plus at the end of the input when text is ready to add", async () => {
+  const firebaseFake = createFirebaseFake({ items: [] });
+  const { elements } = createScriptContext({ firebaseFake });
+
+  const textInput = elements.get("textInput");
+  const addInputBtn = elements.get("addInputBtn");
+
+  assert.equal(addInputBtn.classList.contains("show"), false);
+
+  textInput.value = "   ";
+  textInput.trigger("input");
+  assert.equal(addInputBtn.classList.contains("show"), false);
+
+  textInput.value = "milk";
+  textInput.trigger("input");
+  assert.equal(addInputBtn.classList.contains("show"), true);
+
+  await addInputBtn.trigger("click");
+
+  assert.equal(firebaseFake.writes[0].items[0].text, "milk");
+  assert.equal(textInput.value, "");
+  assert.equal(addInputBtn.classList.contains("show"), false);
+});
+
 test("renders unfinished items before completed items", () => {
   assert.match(html, /function sortVisibleItems/);
   assert.match(html, /Number\(a\.done\) - Number\(b\.done\)/);

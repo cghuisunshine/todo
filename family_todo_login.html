@@ -420,9 +420,46 @@
       position: relative;
     }
 
+    .entry-text-wrap {
+      position: relative;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
     .entry-input-wrap input {
       border-top-right-radius: 0;
       border-bottom-right-radius: 0;
+    }
+
+    .entry-text-wrap input {
+      height: 100%;
+      padding-right: 44px;
+    }
+
+    .add-input-btn {
+      position: absolute;
+      top: 50%;
+      right: 6px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 8px;
+      background: #111827;
+      color: #ffffff;
+      font-size: 22px;
+      line-height: 1;
+      transform: translateY(-50%);
+    }
+
+    .add-input-btn.show {
+      display: inline-flex;
+    }
+
+    .add-input-btn:active {
+      transform: translateY(-50%) scale(0.99);
     }
 
     .metadata-wrap {
@@ -670,7 +707,10 @@
         <div class="form-grid">
           <div class="full">
             <div class="entry-input-wrap">
-              <input id="textInput" aria-label="新事项" placeholder="例如：鸡蛋、牛奶、交电费" />
+              <div class="entry-text-wrap">
+                <input id="textInput" aria-label="新事项" placeholder="例如：鸡蛋、牛奶、交电费" />
+                <button class="add-input-btn" id="addInputBtn" type="button" aria-label="添加事项" title="添加事项">+</button>
+              </div>
               <div class="metadata-wrap">
                 <button class="metadata-btn" id="metadataBtn" aria-label="设置类型、商店和添加人" title="设置">▾</button>
                 <div class="metadata-panel" id="metadataPanel">
@@ -754,6 +794,7 @@
     const importLinesBtn = document.getElementById("importLinesBtn");
 
     const textInput = document.getElementById("textInput");
+    const addInputBtn = document.getElementById("addInputBtn");
     const metadataBtn = document.getElementById("metadataBtn");
     const metadataPanel = document.getElementById("metadataPanel");
     const entryCard = document.getElementById("entryCard");
@@ -778,6 +819,9 @@
           addItem();
         }
       });
+      textInput.addEventListener("input", updateAddInputButton);
+      addInputBtn.addEventListener("click", addItem);
+      updateAddInputButton();
 
       clearAllBtn.addEventListener("click", clearAllItems);
       clearCostcoBtn.addEventListener("click", () => clearItemsBySection("costco"));
@@ -1288,10 +1332,20 @@
       markLocalChange();
 
       textInput.value = "";
+      updateAddInputButton();
       textInput.focus();
 
       render();
       await saveItems();
+    }
+
+    function updateAddInputButton() {
+      if (textInput.value.trim()) {
+        addInputBtn.classList.add("show");
+        return;
+      }
+
+      addInputBtn.classList.remove("show");
     }
 
     async function toggleDone(id) {
