@@ -83,12 +83,34 @@
     }
 
     .icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       width: 40px;
       height: 40px;
       padding: 0;
       border-radius: 8px;
       background: #e5e7eb;
       color: #111827;
+      line-height: 1;
+    }
+
+    .clear-all-btn {
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .clear-all-btn .trash-icon {
+      width: 15px;
+      height: 15px;
+    }
+
+    .clear-all-badge {
+      padding: 1px 3px;
+      border-radius: 4px;
+      background: var(--danger);
+      color: #ffffff;
+      font-size: 8px;
       line-height: 1;
     }
 
@@ -272,6 +294,24 @@
       font-size: 13px;
     }
 
+    .item-delete {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      flex: 0 0 auto;
+      border-radius: 8px;
+      line-height: 1;
+    }
+
+    .trash-icon {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+
     .secondary {
       background: #e5e7eb;
       color: #111827;
@@ -316,6 +356,9 @@
     }
 
     .section-clear {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       width: 32px;
       height: 32px;
       padding: 0;
@@ -526,7 +569,15 @@
             <strong id="currentUserText" title="双击更换用户">未登录</strong>
           </div>
 
-          <button class="icon-btn" id="clearAllBtn" aria-label="全部清除" title="全部清除">×</button>
+          <button class="icon-btn clear-all-btn" id="clearAllBtn" aria-label="全部清除" title="全部清除">
+            <svg class="trash-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6 7l1 14h10l1-14" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+            <span class="clear-all-badge" aria-hidden="true">ALL</span>
+          </button>
 
           <div class="menu-wrap">
             <button class="icon-btn" id="menuBtn" aria-label="打开设置" title="设置">☰</button>
@@ -557,7 +608,15 @@
         <h2>Costco 购物</h2>
         <div class="section-actions">
           <span id="costcoCount" class="count"></span>
-          <button class="section-clear" id="clearCostcoBtn" aria-label="清除 Costco 购物" title="清除 Costco 购物">×</button>
+          <button class="section-clear clear-all-btn" id="clearCostcoBtn" aria-label="清除 Costco 购物" title="清除 Costco 购物">
+            <svg class="trash-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6 7l1 14h10l1-14" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+            <span class="clear-all-badge" aria-hidden="true">ALL</span>
+          </button>
         </div>
       </div>
       <div id="costcoList"></div>
@@ -568,7 +627,15 @@
         <h2>其他购物</h2>
         <div class="section-actions">
           <span id="otherShoppingCount" class="count"></span>
-          <button class="section-clear" id="clearOtherShoppingBtn" aria-label="清除其他购物" title="清除其他购物">×</button>
+          <button class="section-clear clear-all-btn" id="clearOtherShoppingBtn" aria-label="清除其他购物" title="清除其他购物">
+            <svg class="trash-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6 7l1 14h10l1-14" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+            <span class="clear-all-badge" aria-hidden="true">ALL</span>
+          </button>
         </div>
       </div>
       <div id="otherShoppingList"></div>
@@ -579,7 +646,15 @@
         <h2>家庭待办</h2>
         <div class="section-actions">
           <span id="todoCount" class="count"></span>
-          <button class="section-clear" id="clearTodoBtn" aria-label="清除家庭待办" title="清除家庭待办">×</button>
+          <button class="section-clear clear-all-btn" id="clearTodoBtn" aria-label="清除家庭待办" title="清除家庭待办">
+            <svg class="trash-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6 7l1 14h10l1-14" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+            <span class="clear-all-badge" aria-hidden="true">ALL</span>
+          </button>
         </div>
       </div>
       <div id="todoList"></div>
@@ -1372,7 +1447,14 @@
               </div>
             </div>
 
-            <button class="danger" onclick="deleteItem('${item.id}')">删除</button>
+            <button class="danger item-delete" type="button" onclick="deleteItem('${item.id}')" aria-label="删除" title="删除">
+              <svg class="trash-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M6 7l1 14h10l1-14" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              </svg>
+            </button>
           </div>
         `;
       }).join("");

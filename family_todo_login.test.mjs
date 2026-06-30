@@ -364,7 +364,9 @@ test("imports copied multiline text from hamburger settings", () => {
 
 test("includes a clear-all icon button with confirmation", () => {
   assert.match(html, /id="clearAllBtn"/);
+  assert.match(html, /class="icon-btn clear-all-btn"/);
   assert.match(html, /aria-label="全部清除"/);
+  assert.match(html, /<span class="clear-all-badge" aria-hidden="true">ALL<\/span>/);
   assert.match(html, /clearAllBtn\.addEventListener\("click", clearAllItems\)/);
   assert.match(html, /async function clearAllItems/);
   assert.match(html, /confirm\("确定清除全部事项吗？"\)/);
@@ -372,12 +374,13 @@ test("includes a clear-all icon button with confirmation", () => {
 });
 
 test("includes clear-all icon buttons for each list section", async () => {
-  assert.match(html, /id="clearCostcoBtn"/);
+  assert.match(html, /class="section-clear clear-all-btn" id="clearCostcoBtn"/);
   assert.match(html, /aria-label="清除 Costco 购物"/);
-  assert.match(html, /id="clearOtherShoppingBtn"/);
+  assert.match(html, /class="section-clear clear-all-btn" id="clearOtherShoppingBtn"/);
   assert.match(html, /aria-label="清除其他购物"/);
-  assert.match(html, /id="clearTodoBtn"/);
+  assert.match(html, /class="section-clear clear-all-btn" id="clearTodoBtn"/);
   assert.match(html, /aria-label="清除家庭待办"/);
+  assert.equal((html.match(/<span class="clear-all-badge" aria-hidden="true">ALL<\/span>/g) || []).length, 4);
   assert.match(html, /clearCostcoBtn\.addEventListener\("click", \(\) => clearItemsBySection\("costco"\)\)/);
   assert.match(html, /clearOtherShoppingBtn\.addEventListener\("click", \(\) => clearItemsBySection\("otherShopping"\)\)/);
   assert.match(html, /clearTodoBtn\.addEventListener\("click", \(\) => clearItemsBySection\("todo"\)\)/);
