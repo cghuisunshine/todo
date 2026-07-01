@@ -1319,7 +1319,7 @@
         return;
       }
 
-      items.unshift({
+      const newItem = {
         id: makeId(),
         text,
         type,
@@ -1328,7 +1328,9 @@
         done: false,
         createdAt: new Date().toISOString(),
         doneAt: null
-      });
+      };
+
+      items.unshift(newItem);
       markLocalChange();
 
       textInput.value = "";
@@ -1337,6 +1339,7 @@
 
       render();
       await saveItems();
+      showLastAddedStatus(newItem);
     }
 
     function updateAddInputButton() {
@@ -1346,6 +1349,10 @@
       }
 
       addInputBtn.classList.remove("show");
+    }
+
+    function showLastAddedStatus(item) {
+      setStatus(item.text + " added");
     }
 
     async function toggleDone(id) {

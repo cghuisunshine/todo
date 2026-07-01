@@ -356,6 +356,19 @@ test("shows an inline plus at the end of the input when text is ready to add", a
   assert.equal(addInputBtn.classList.contains("show"), false);
 });
 
+test("shows the last added item in the status field", async () => {
+  const firebaseFake = createFirebaseFake({ items: [] });
+  const { elements } = createScriptContext({ firebaseFake });
+
+  const textInput = elements.get("textInput");
+  textInput.value = "milk";
+  await elements.get("addInputBtn").trigger("click");
+
+  assert.equal(textInput.value, "");
+  assert.equal(elements.get("status").textContent, "milk added");
+  assert.match(html, /placeholder="例如：鸡蛋、牛奶、交电费"/);
+});
+
 test("renders unfinished items before completed items", () => {
   assert.match(html, /function sortVisibleItems/);
   assert.match(html, /Number\(a\.done\) - Number\(b\.done\)/);
