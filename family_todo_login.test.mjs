@@ -369,6 +369,62 @@ test("shows the last added item in the status field", async () => {
   assert.match(html, /placeholder="例如：鸡蛋、牛奶、交电费"/);
 });
 
+test("prompts below the input and does not add an identical item twice", async () => {
+  const existingItem = {
+    id: "existing",
+    text: "Milk",
+    type: "shopping",
+    store: "Costco",
+    by: "Peggy",
+    done: false,
+    createdAt: "2026-06-30T10:00:00.000Z",
+    doneAt: null
+  };
+  const firebaseFake = createFirebaseFake({
+    items: [existingItem]
+  });
+  const { elements } = createScriptContext({ firebaseFake });
+  await flushPromises();
+  firebaseFake.emitSnapshot({ items: [existingItem] });
+
+  const textInput = elements.get("textInput");
+  textInput.value = " milk ";
+  elements.get("typeInput").value = "shopping";
+  elements.get("storeInput").value = "Costco";
+
+  await elements.get("addInputBtn").trigger("click");
+
+  assert.equal(firebaseFake.writes.length, 0);
+  assert.equal(textInput.value, " milk ");
+  assert.equal(elements.get("status").textContent, "milk already exists");
+});
+
+test("prompts below the input as soon as typed text matches an existing item", async () => {
+  const existingItem = {
+    id: "existing",
+    text: "Milk",
+    type: "shopping",
+    store: "Costco",
+    by: "Peggy",
+    done: false,
+    createdAt: "2026-06-30T10:00:00.000Z",
+    doneAt: null
+  };
+  const firebaseFake = createFirebaseFake({
+    items: [existingItem]
+  });
+  const { elements } = createScriptContext({ firebaseFake });
+  await flushPromises();
+  firebaseFake.emitSnapshot({ items: [existingItem] });
+
+  const textInput = elements.get("textInput");
+  textInput.value = "milk";
+  textInput.trigger("input");
+
+  assert.equal(elements.get("status").textContent, "milk already exists");
+  assert.equal(firebaseFake.writes.length, 0);
+});
+
 test("renders unfinished items before completed items", () => {
   assert.match(html, /function sortVisibleItems/);
   assert.match(html, /Number\(a\.done\) - Number\(b\.done\)/);

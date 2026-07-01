@@ -773,6 +773,7 @@
     let pendingLocalUpdatedAt = "";
     let loginName = "";
     let isEntryCollapsed = localStorage.getItem(ENTRY_CARD_COLLAPSED_KEY) === "1";
+    let activeInputPrompt = "";
 
     const loginOverlay = document.getElementById("loginOverlay");
     const loginNameInput = document.getElementById("loginNameInput");
@@ -819,9 +820,9 @@
           addItem();
         }
       });
-      textInput.addEventListener("input", updateAddInputButton);
+      textInput.addEventListener("input", updateEntryInputState);
       addInputBtn.addEventListener("click", addItem);
-      updateAddInputButton();
+      updateEntryInputState();
 
       clearAllBtn.addEventListener("click", clearAllItems);
       clearCostcoBtn.addEventListener("click", () => clearItemsBySection("costco"));
@@ -892,7 +893,9 @@
 
       typeInput.addEventListener("change", () => {
         storeInput.disabled = typeInput.value === "todo";
+        updateEntryInputState();
       });
+      storeInput.addEventListener("change", updateEntryInputState);
 
       document.addEventListener("click", () => {
         metadataPanel.classList.remove("show");
@@ -1319,6 +1322,12 @@
         return;
       }
 
+      if (hasIdenticalItem(text, type, store)) {
+        textInput.focus();
+        setStatus(text + " already exists");
+        return;
+      }
+
       const newItem = {
         id: makeId(),
         text,
@@ -1342,6 +1351,18 @@
       showLastAddedStatus(newItem);
     }
 
+    function hasIdenticalItem(text, type, store) {
+      return items.some(item =>
+        normalizeItemText(item.text) === normalizeItemText(text) &&
+        item.type === type &&
+        (item.type === "shopping" ? item.store : "") === store
+      );
+    }
+
+    function normalizeItemText(value) {
+      return String(value || "").trim().toLocaleLowerCase();
+    }
+
     function updateAddInputButton() {
       if (textInput.value.trim()) {
         addInputBtn.classList.add("show");
@@ -1349,6 +1370,31 @@
       }
 
       addInputBtn.classList.remove("show");
+    }
+
+    function updateEntryInputState() {
+      updateAddInputButton();
+      updateDuplicateInputPrompt();
+    }
+
+    function updateDuplicateInputPrompt() {
+      const text = textInput.value.trim();
+      const type = typeInput.value;
+      const store = type === "shopping" ? storeInput.value : "";
+
+      if (text && hasIdenticalItem(text, type, store)) {
+        setInputPrompt(text + " already exists");
+        return;
+      }
+
+      if (activeInputPrompt) {
+        setInputPrompt("");
+      }
+    }
+
+    function setInputPrompt(message) {
+      activeInputPrompt = message || "";
+      statusEl.textContent = activeInputPrompt;
     }
 
     function showLastAddedStatus(item) {
@@ -1527,6 +1573,9 @@
 
     function setStatus(message) {
       statusEl.textContent = message || "";
+      if (message !== activeInputPrompt) {
+        activeInputPrompt = "";
+      }
     }
 
     function formatTime(isoString) {
